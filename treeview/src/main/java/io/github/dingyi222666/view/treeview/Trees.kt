@@ -128,10 +128,10 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
                 continue
             }
 
-            children.sorted().forEach {
+            children.sortedDescending().forEach {
                 val childNode = allNode.get(it) as TreeNode<T>
-               // if (visitor.visitChildNode(childNode)) {
-                    nodeQueue.addFirst(childNode)
+                // if (visitor.visitChildNode(childNode)) {
+                nodeQueue.addFirst(childNode)
                 //}
             }
 

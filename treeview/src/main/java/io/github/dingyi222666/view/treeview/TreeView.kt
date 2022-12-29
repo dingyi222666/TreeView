@@ -4,19 +4,16 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
-import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.R
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
-    RecyclerView(context, attrs, defStyleAttr), TreeNodeListener {
+    RecyclerView(context, attrs, defStyleAttr), TreeNodeListener<Any> {
 
     constructor(context: Context, attrs: AttributeSet?) : this(
         context,
@@ -30,7 +27,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     private lateinit var _adapter: Adapter
 
-    var treeNodeClickListener: TreeNodeListener = EmptyTreeNodeListener()
+    var nodeClickListener: TreeNodeListener<Any> = EmptyTreeNodeListener()
 
     private lateinit var coroutineScope: CoroutineScope
 
@@ -49,7 +46,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val listener = this@TreeView
             val node = getItem(position) as TreeNode<Any>
-            binder.bindView(holder, node, listener)
+            binder.bindView(holder, node, listener as TreeNodeListener<Any>)
             holder.itemView.setOnClickListener {
                 listener.onClick(node, holder)
             }
@@ -84,11 +81,11 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     }
 
-    override fun onClick(node: TreeNode<*>, holder: ViewHolder) {
+    override fun onClick(node: TreeNode<Any>, holder: ViewHolder) {
         if (node.hasChild) {
             onToggle(node, !node.expand, holder)
         }
-        treeNodeClickListener.onClick(node, holder)
+        nodeClickListener.onClick(node, holder)
         coroutineScope.launch {
             tree.refresh(node as TreeNode<Any>)
             refresh()
@@ -96,36 +93,38 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     }
 
-    override fun onLongClick(node: TreeNode<*>, holder: ViewHolder) {
+    override fun onLongClick(node: TreeNode<Any>, holder: ViewHolder) {
 
     }
 
-    override fun onToggle(node: TreeNode<*>, isExpand: Boolean, holder: ViewHolder) {
+    override fun onToggle(node: TreeNode<Any>, isExpand: Boolean, holder: ViewHolder) {
         node.expand = isExpand
-        treeNodeClickListener.onToggle(node, isExpand, holder)
+        nodeClickListener.onToggle(node, isExpand, holder)
     }
 
 
 }
 
-abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
+abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
+    TreeNodeListener<T> {
 
     abstract fun createView(parent: ViewGroup, viewType: Int): View
 
     abstract fun bindView(
         holder: TreeView.ViewHolder,
         node: TreeNode<T>,
-        listener: TreeNodeListener
+        listener: TreeNodeListener<T>
     )
 
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
+
 }
 
-class EmptyTreeNodeListener : TreeNodeListener {}
+class EmptyTreeNodeListener : TreeNodeListener<Any> {}
 
-interface TreeNodeListener {
-    fun onClick(node: TreeNode<*>, holder: TreeView.ViewHolder) {}
-    fun onLongClick(node: TreeNode<*>, holder: TreeView.ViewHolder) {}
-    fun onToggle(node: TreeNode<*>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
+interface TreeNodeListener<T:Any> {
+    fun onClick(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
+    fun onLongClick(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
+    fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
 }

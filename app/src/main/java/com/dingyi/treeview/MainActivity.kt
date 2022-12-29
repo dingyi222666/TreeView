@@ -11,7 +11,6 @@ import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
 import io.github.dingyi222666.view.treeview.Tree
-import io.github.dingyi222666.view.treeview.TreeIdGenerator
 import io.github.dingyi222666.view.treeview.TreeNode
 import io.github.dingyi222666.view.treeview.TreeNodeGenerator
 import io.github.dingyi222666.view.treeview.TreeNodeListener
@@ -42,6 +41,7 @@ class MainActivity : AppCompatActivity() {
             bindCoroutineScope(lifecycleScope)
             this.tree = tree as Tree<Any>
             binder = ViewBinder() as TreeViewBinder<Any>
+            nodeClickListener = binder
         }
 
         lifecycleScope.launch {
@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
                         .addChild(
                             VirtualFile("layout", true)
                                 .addChild(
-                                    VirtualFile("activity_main", true)
+                                    VirtualFile("activity_main", false)
                                 )
                         )
                 ),
@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
         return root
     }
 
-    inner class ViewBinder : TreeViewBinder<VirtualFile>() {
+    inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<VirtualFile> {
 
         override fun createView(parent: ViewGroup, viewType: Int): View {
             if (viewType == 1) {
@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         override fun bindView(
             holder: TreeView.ViewHolder,
             node: TreeNode<VirtualFile>,
-            listener: TreeNodeListener
+            listener: TreeNodeListener<VirtualFile>
         ) {
             if (node.hasChild) {
                 applyDir(holder, node)
@@ -121,6 +121,7 @@ class MainActivity : AppCompatActivity() {
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 leftMargin = node.level * 7.dp
             }
+
         }
 
         private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
@@ -132,17 +133,33 @@ class MainActivity : AppCompatActivity() {
         private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
             val binding = ItemDirBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
-            if (node.expand) {
-                binding
-                    .ivArrow
-                    .animate()
-                    .rotation(90f)
-                    .setDuration(0)
-                    .start()
 
+            binding
+                .ivArrow
+                .animate()
+                .rotation(if (node.expand) 90f else 0f)
+                .setDuration(0)
+                .start()
+        }
+
+
+        override fun onClick(node: TreeNode<VirtualFile>, holder: TreeView.ViewHolder) {
+            if (node.hasChild) {
+                applyDir(holder, node)
+            } else {
+                applyFile(holder, node)
             }
         }
 
+        override fun onToggle(
+            node: TreeNode<VirtualFile>,
+            isExpand: Boolean,
+            holder: TreeView.ViewHolder
+        ) {
+            if (isExpand) {
+                applyDir(holder, node)
+            }
+        }
     }
 
     inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
