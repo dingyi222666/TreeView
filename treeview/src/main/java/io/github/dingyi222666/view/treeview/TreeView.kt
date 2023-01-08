@@ -94,7 +94,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     }
 
     override fun onLongClick(node: TreeNode<Any>, holder: ViewHolder) {
-
+        nodeClickListener.onLongClick(node,holder)
     }
 
     override fun onToggle(node: TreeNode<Any>, isExpand: Boolean, holder: ViewHolder) {

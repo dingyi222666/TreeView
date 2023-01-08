@@ -13,5 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "TreeView"
-include ':app'
-include ':treeview'
+include (":app",":treeview")
