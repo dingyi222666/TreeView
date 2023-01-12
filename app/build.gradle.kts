@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.dingyi.treeview"
-        minSdk = 21
+        minSdk = 26
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
@@ -41,7 +41,6 @@ android {
 }
 
 dependencies {
-
     implementation("androidx.core:core-ktx:1.9.0")
     implementation(project(":treeview"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
