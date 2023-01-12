@@ -105,8 +105,6 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
 
         nodeQueue.add(rootNode)
 
-
-
         while (nodeQueue.isNotEmpty()) {
             val currentNode = nodeQueue.removeFirst()
 

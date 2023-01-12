@@ -10,7 +10,7 @@ android {
     compileSdk = 33
 
     defaultConfig {
-        minSdk = 26
+        minSdk = 21
         //targetSdk = 33
 
         //  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -42,7 +42,7 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates("io.github.dingyi222666.view", "treeview", "1.0.0")
+    coordinates("io.github.dingyi222666", "treeview", "1.0.1")
 
     pom {
         name.set("TreeView")

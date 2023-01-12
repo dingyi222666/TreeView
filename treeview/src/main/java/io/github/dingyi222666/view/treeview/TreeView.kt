@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.R
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -18,7 +17,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     constructor(context: Context, attrs: AttributeSet?) : this(
         context,
         attrs,
-        R.attr.recyclerViewStyle
+        0
     )
 
     lateinit var tree: Tree<Any>
@@ -70,12 +69,12 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     }
 
 
-    suspend fun refresh() {
+    suspend fun refresh(fastRefresh:Boolean = false) {
         if (!this::_adapter.isInitialized) {
             initAdapter()
         }
 
-        val list = tree.toSortedList(fastGet = false)
+        val list = tree.toSortedList(fastGet = fastRefresh)
 
         _adapter.submitList(list)
 
@@ -88,7 +87,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         nodeClickListener.onClick(node, holder)
         coroutineScope.launch {
             tree.refresh(node as TreeNode<Any>)
-            refresh()
+            refresh(fastRefresh = true)
         }
 
     }

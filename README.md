@@ -9,3 +9,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 3. Fetching data asynchronously, rather than loading it all at once
 
 ## Usage
+
+```groovy
+implementation("io.github.dingyi222666:treeview:1.0.0")
+```
