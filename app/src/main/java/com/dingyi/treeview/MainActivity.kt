@@ -14,7 +14,7 @@ import io.github.dingyi222666.view.treeview.AbstractTree
 import io.github.dingyi222666.view.treeview.Tree
 import io.github.dingyi222666.view.treeview.TreeNode
 import io.github.dingyi222666.view.treeview.TreeNodeGenerator
-import io.github.dingyi222666.view.treeview.TreeNodeListener
+import io.github.dingyi222666.view.treeview.TreeNodeEventListener
 import io.github.dingyi222666.view.treeview.TreeView
 import io.github.dingyi222666.view.treeview.TreeViewBinder
 import kotlinx.coroutines.Dispatchers
@@ -38,12 +38,12 @@ class MainActivity : AppCompatActivity() {
         tree.generator = NodeGenerator()
         tree.initTree()
 
-        binding.treeview.apply {
+        (binding.treeview as TreeView<VirtualFile>).apply {
             supportHorizontalScroll = true
             bindCoroutineScope(lifecycleScope)
-            this.tree = tree as Tree<Any>
-            binder = ViewBinder() as TreeViewBinder<Any>
-            nodeClickListener = binder
+            this.tree = tree
+            binder = ViewBinder()
+            nodeEventListener = binder
         }
 
         lifecycleScope.launch {
@@ -106,13 +106,13 @@ class MainActivity : AppCompatActivity() {
         return root
     }
 
-    inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<VirtualFile> {
+    inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<VirtualFile> {
 
         override fun createView(parent: ViewGroup, viewType: Int): View {
-            if (viewType == 1) {
-                return ItemDirBinding.inflate(layoutInflater, parent, false).root
+            return if (viewType == 1) {
+                ItemDirBinding.inflate(layoutInflater, parent, false).root
             } else {
-                return ItemFileBinding.inflate(layoutInflater, parent, false).root
+                ItemFileBinding.inflate(layoutInflater, parent, false).root
             }
         }
 
@@ -140,16 +140,18 @@ class MainActivity : AppCompatActivity() {
         override fun bindView(
             holder: TreeView.ViewHolder,
             node: TreeNode<VirtualFile>,
-            listener: TreeNodeListener<VirtualFile>
+            listener: TreeNodeEventListener<VirtualFile>
         ) {
             if (node.hasChild) {
                 applyDir(holder, node)
             } else {
                 applyFile(holder, node)
             }
+
             val itemView = if (getItemViewType(node) == 1)
                 ItemDirBinding.bind(holder.itemView).space
             else ItemFileBinding.bind(holder.itemView).space
+
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = node.depth * 10.dp
             }
@@ -197,13 +199,14 @@ class MainActivity : AppCompatActivity() {
     inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
 
         private val root = createVirtualFile()
-
         override suspend fun refreshNode(
             targetNode: TreeNode<VirtualFile>,
             oldChildNodeSet: Set<Int>,
             tree: AbstractTree<VirtualFile>,
         ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
+
             delay(100)
+
             val oldNodes = tree.getNodes(oldChildNodeSet)
 
             val child = checkNotNull(targetNode.data?.getChild()).toMutableSet()
@@ -226,7 +229,7 @@ class MainActivity : AppCompatActivity() {
                 result.add(
                     TreeNode(
                         it, targetNode.depth + 1, it.name,
-                        tree.generateId(), it.isDir && it.getChild().isNotEmpty(), false
+                        tree.generateId(), it.isDir && it.getChild().isNotEmpty(), it.isDir, false
                     )
                 )
             }
@@ -237,8 +240,6 @@ class MainActivity : AppCompatActivity() {
         override fun createRootNode(): TreeNode<VirtualFile> {
             return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
         }
-
-
     }
 
 }

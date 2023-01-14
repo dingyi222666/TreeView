@@ -8,15 +8,15 @@
     android:background="?selectableItemBackground"
     android:orientation="horizontal">
 
-    <View
+    <Space
         android:id="@+id/space"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_marginLeft="26dp" />
+       />
 
     <TextView
         android:id="@+id/tv_name"
-
+        android:layout_marginLeft="26dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:drawableLeft="@drawable/baseline_insert_drive_file_24"

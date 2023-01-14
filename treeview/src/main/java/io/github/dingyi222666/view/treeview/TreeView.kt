@@ -16,8 +16,20 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.properties.Delegates
 
-class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
-    RecyclerView(context, attrs, defStyleAttr), TreeNodeListener<Any> {
+/**
+ * TreeView.
+ *
+ * TreeView based on RecyclerView implementation.
+ *
+ * The data in the [AbstractTree] can be displayed.
+ *
+ * @param T Data type of [tree]
+ * @see [AbstractTree]
+ * @see [Tree]
+ * @see [TreeViewBinder]
+ */
+class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
+    RecyclerView(context, attrs, defStyleAttr), TreeNodeEventListener<T> {
 
     constructor(context: Context, attrs: AttributeSet?) : this(
         context,
@@ -30,16 +42,42 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     private var pointerId = 0
     private var pointerLastX = 0f
     private var slopExceeded = false
-    private val horizontalTouchSlop = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics)
+    private val horizontalTouchSlop =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics)
     private val maxHorizontalOffset
         get() = (maxChildWidth - width * 0.75f).coerceAtLeast(0f)
 
-    lateinit var tree: Tree<Any>
+    /**
+     * Tree structure.
+     *
+     * Set it to allow TreeView to fetch node data.
+     */
+    lateinit var tree: Tree<T>
 
-    lateinit var binder: TreeViewBinder<Any>
+    /**
+     * TreeView Binder.
+     *
+     * Set it to bind between node and view
+     */
+    lateinit var binder: TreeViewBinder<T>
 
-    var nodeClickListener: TreeNodeListener<Any> = EmptyTreeNodeListener()
+    /**
+     * Event listener for the node.
+     *
+     * Set it to listen for event on the node, such as a click on the node event.
+     */
+    var nodeEventListener: TreeNodeEventListener<T> =
+        EmptyTreeNodeEventListener() as TreeNodeEventListener<T>
 
+    /**
+     * Whether horizontal scrolling is supported.
+     *
+     * In most cases, you don't need to turn it on.
+     *
+     * you only need to turn it on when the indentation of the node binded view is too large, or when the width of the view itself is too large for the screen to be fully displayed.
+     *
+     * Note: This is still an experimental feature and some problems may arise.
+     */
     var supportHorizontalScroll by Delegates.observable(false) { _, old, new ->
         if (!this::coroutineScope.isInitialized || old == new) {
             return@observable
@@ -60,8 +98,8 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         rootView: View,
     ) : RecyclerView.ViewHolder(rootView)
 
-    private inner class Adapter(val binder: TreeViewBinder<Any>) :
-        ListAdapter<TreeNode<*>, ViewHolder>(binder as DiffUtil.ItemCallback<TreeNode<*>>) {
+    private inner class Adapter(val binder: TreeViewBinder<T>) :
+        ListAdapter<TreeNode<T>, ViewHolder>(binder as DiffUtil.ItemCallback<TreeNode<T>>) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val itemView = binder.createView(parent, viewType)
@@ -69,16 +107,22 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         }
 
         override fun getItemViewType(position: Int): Int {
-            return binder.getItemViewType(getItem(position) as TreeNode<Any>)
+            return binder.getItemViewType(getItem(position))
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val rootView = this@TreeView
-            val node = getItem(position) as TreeNode<Any>
+            val node = getItem(position)
+
             holder.itemView.setOnClickListener {
                 rootView.onClick(node, holder)
             }
-            binder.bindView(holder, node, rootView as TreeNodeListener<Any>)
+
+            holder.itemView.setOnLongClickListener {
+                return@setOnLongClickListener rootView.onLongClick(node, holder)
+            }
+
+            binder.bindView(holder, node, rootView)
 
             if (supportHorizontalScroll) {
                 holder.itemView.apply {
@@ -101,7 +145,8 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
                     )
                 }
             } else {
-                holder.itemView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                holder.itemView.layoutParams =
+                    LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             }
         }
 
@@ -117,10 +162,27 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     }
 
+    /**
+     * Bind the concurrent scope of the TreeView.
+     *
+     * Some operations need to run on a concurrent scope, set it to make TreeView work better.
+     *
+     * Note: TreeView is not responsible for closing the concurrent scope, it is up to the caller to do so.
+     */
     fun bindCoroutineScope(coroutineScope: CoroutineScope) {
         this.coroutineScope = coroutineScope
     }
 
+    /**
+     * Refresh the data.
+     *
+     * Call this method to refresh the node data to display on the TreeView.
+     *
+     * @param [fastRefresh] Whether to quick refresh or not.
+     *
+     * If ture, only data from the cache will be fetched instead of calling the [TreeNodeGenerator]
+     * @see [AbstractTree.toSortedList]
+     */
     suspend fun refresh(fastRefresh: Boolean = false) {
         if (!this::_adapter.isInitialized) {
             initAdapter()
@@ -190,7 +252,9 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
                             slopExceeded = true
                         }
                         if (slopExceeded) {
-                            horizontalOffset = (pointerLastX - ev.x + horizontalOffset).coerceAtLeast(0f).coerceAtMost(maxHorizontalOffset)
+                            horizontalOffset =
+                                (pointerLastX - ev.x + horizontalOffset).coerceAtLeast(0f)
+                                    .coerceAtMost(maxHorizontalOffset)
                             pointerLastX = ev.x
                             invalidate()
                         }
@@ -217,11 +281,16 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         canvas.restore()
     }
 
-    override fun onClick(node: TreeNode<Any>, holder: ViewHolder) {
-        if (node.hasChild) {
+    override fun onClick(node: TreeNode<T>, holder: ViewHolder) {
+        if (node.isChild) {
             onToggle(node, !node.expand, holder)
         }
-        nodeClickListener.onClick(node, holder)
+
+        nodeEventListener.onClick(node, holder)
+
+        if (!node.isChild) {
+            return
+        }
 
         coroutineScope.launch {
             tree.refresh(node)
@@ -230,37 +299,107 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     }
 
-    override fun onLongClick(node: TreeNode<Any>, holder: ViewHolder) {
-        nodeClickListener.onLongClick(node, holder)
+    override fun onLongClick(node: TreeNode<T>, holder: ViewHolder): Boolean {
+        return nodeEventListener.onLongClick(node, holder)
     }
 
-    override fun onToggle(node: TreeNode<Any>, isExpand: Boolean, holder: ViewHolder) {
+    override fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: ViewHolder) {
         node.expand = isExpand
-        nodeClickListener.onToggle(node, isExpand, holder)
+        nodeEventListener.onToggle(node, isExpand, holder)
     }
 
 }
 
+/**
+ * Binder for TreeView and nodes.
+ *
+ * TreeView calls this class to get the generated itemView and bind the node data to the itemView
+ *
+ * @see [TreeView.binder]
+ */
 abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
-    TreeNodeListener<T> {
+    TreeNodeEventListener<T> {
 
+    /**
+     * like [RecyclerView.Adapter.onCreateViewHolder].
+     *
+     * Simply provide View. No need to provide a ViewHolder.
+     *
+     * @see [RecyclerView.Adapter.onCreateViewHolder]
+     */
     abstract fun createView(parent: ViewGroup, viewType: Int): View
 
+    /**
+     * like [RecyclerView.Adapter.onBindViewHolder]
+     *
+     * The adapter calls this method to display the data in the node to the view
+     *
+     *
+     * @param [node] target node
+     * @param [listener] The root event listener of the TreeView.
+     *
+     * If you need to override the itemView's click event or other action separately,
+     * call this event listener after you have completed your action.
+     *
+     * Otherwise the listener you set will not work either.
+     *
+     * @see [RecyclerView.Adapter.onBindViewHolder]
+     */
     abstract fun bindView(
         holder: TreeView.ViewHolder,
         node: TreeNode<T>,
-        listener: TreeNodeListener<T>
+        listener: TreeNodeEventListener<T>
     )
 
+    /**
+     * like [RecyclerView.Adapter.getItemViewType]
+     *
+     * For inter node data, the type (whether it is a leaf node or not) varies and different layouts may need to be provided.
+     *
+     * You can return different numbers and these return values are mapped in the viewType in the [createView]
+     *
+     * @see [RecyclerView.Adapter.getItemViewType]
+     * @see [createView]
+     */
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
 
 }
 
-class EmptyTreeNodeListener : TreeNodeListener<Any>
+class EmptyTreeNodeEventListener : TreeNodeEventListener<Any>
 
-interface TreeNodeListener<T : Any> {
+/**
+ * Event listener interface for tree nodes.
+ *
+ * Currently supported, [onClick], [onLongClick], and [onToggle]
+ */
+interface TreeNodeEventListener<T : Any> {
+
+    /**
+     * Called when a node has been clicked.
+     *
+     * @param node Clicked node
+     * @param holder Node binding of the holder
+     */
     fun onClick(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
-    fun onLongClick(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
+
+    /**
+     * Called when a node has been clicked and held.
+     *
+     * @param node Clicked node
+     * @param holder Node binding of the holder
+     * @return `true` if the callback consumed the long click, false otherwise.
+     */
+    fun onLongClick(node: TreeNode<T>, holder: TreeView.ViewHolder): Boolean {
+        return false
+    }
+
+    /**
+     * Called when a node is clicked when it is a child node
+     *
+     * @param node Clicked node
+     * @param isExpand Is the node expanded
+     * @param holder Node binding of the holder
+     */
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
 }

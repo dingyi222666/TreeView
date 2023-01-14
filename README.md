@@ -18,7 +18,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 - Introduction Dependency
 
 ```groovy
-implementation("io.github.dingyi222666:treeview:1.0.2")
+implementation("io.github.dingyi222666:treeview:1.0.4")
 ```
 
 - First, we need a way to get the data to display, in this case we fake some unreal data
@@ -108,26 +108,25 @@ fun createVirtualFile(): VirtualFile {
 - Create a new node generator for the transformation of your data to the nodes
 
 ```kotlin
-
 inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
 
     private val root = createVirtualFile()
-
     override suspend fun refreshNode(
         targetNode: TreeNode<VirtualFile>,
-        oldNodeSet: Set<Int>,
-        withChild: Boolean,
+        oldChildNodeSet: Set<Int>,
         tree: AbstractTree<VirtualFile>,
     ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
-        // delay(100)
-        val oldNodes = tree.getNodes(oldNodeSet)
 
-        val child = checkNotNull(targetNode.extra?.getChild()).toMutableSet()
+        // delay(100)
+
+        val oldNodes = tree.getNodes(oldChildNodeSet)
+
+        val child = checkNotNull(targetNode.data?.getChild()).toMutableSet()
 
         val result = mutableSetOf<TreeNode<VirtualFile>>()
 
         oldNodes.forEach { node ->
-            val virtualFile = child.find { it.name == node.extra?.name }
+            val virtualFile = child.find { it.name == node.data?.name }
             if (virtualFile != null) {
                 result.add(node)
             }
@@ -141,8 +140,8 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
         child.forEach {
             result.add(
                 TreeNode(
-                    it, targetNode.level + 1, it.name,
-                    tree.generateId(), it.isDir && it.getChild().isNotEmpty(), false
+                    it, targetNode.depth + 1, it.name,
+                    tree.generateId(), it.isDir && it.getChild().isNotEmpty(), it.isDir, false
                 )
             )
         }
@@ -150,28 +149,26 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
         result
     }
 
-
     override fun createRootNode(): TreeNode<VirtualFile> {
         return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
     }
-
-
 }
 
 ```
 
-- Create a node binder to bind the node to the layout, and in most cases also implement node click
-  events in this class
+- Create a node binder to bind the node to the layout, and in most case also implement node click
+  events in this class 
+  
+  Note: For indenting itemView, we recommend to add a Space to the far left of your layout. The width of this space is the width of the indent.
 
 ```kotlin
-
-inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<VirtualFile> {
+inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<VirtualFile> {
 
     override fun createView(parent: ViewGroup, viewType: Int): View {
-        if (viewType == 1) {
-            return ItemDirBinding.inflate(layoutInflater, parent, false).root
+        return if (viewType == 1) {
+            ItemDirBinding.inflate(layoutInflater, parent, false).root
         } else {
-            return ItemFileBinding.inflate(layoutInflater, parent, false).root
+            ItemFileBinding.inflate(layoutInflater, parent, false).root
         }
     }
 
@@ -179,7 +176,7 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
         oldItem: TreeNode<VirtualFile>,
         newItem: TreeNode<VirtualFile>
     ): Boolean {
-        return oldItem == newItem && oldItem.extra?.name == newItem.extra?.name
+        return oldItem == newItem && oldItem.data?.name == newItem.data?.name
     }
 
     override fun areItemsTheSame(
@@ -190,7 +187,7 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
     }
 
     override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
-        if (node.extra?.isDir == true) {
+        if (node.data?.isDir == true) {
             return 1
         }
         return 0
@@ -199,28 +196,28 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
     override fun bindView(
         holder: TreeView.ViewHolder,
         node: TreeNode<VirtualFile>,
-        listener: TreeNodeListener<VirtualFile>
+        listener: TreeNodeEventListener<VirtualFile>
     ) {
         if (node.hasChild) {
             applyDir(holder, node)
         } else {
             applyFile(holder, node)
         }
-        
-        
-        holder.itemView.updatePadding(
-            top = 0,
-            right = 0,
-            bottom = 0,
-            left = node.level * 10.dp
-        )
+
+        val itemView = if (getItemViewType(node) == 1)
+            ItemDirBinding.bind(holder.itemView).space
+        else ItemFileBinding.bind(holder.itemView).space
+
+        itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            width = node.depth * 10.dp
+        }
+        //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
 
     }
 
     private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
         val binding = ItemFileBinding.bind(holder.itemView)
         binding.tvName.text = node.name.toString()
-
     }
 
     private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
@@ -231,7 +228,7 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
             .ivArrow
             .animate()
             .rotation(if (node.expand) 90f else 0f)
-            .setDuration(100)
+            .setDuration(0)
             .start()
     }
 
@@ -254,7 +251,6 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
         }
     }
 }
-
 ```
 
 - If you want to implement horizontal scrolling, then you may need to do like this
@@ -263,23 +259,21 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
 treeview.supportHorizontalScroll = true
 ```
 
-- Now you can create the tree structure and set up the node generator and node binder for the TreeView, then refresh the data
+- Now you can create the tree structure and set up the node generator and node binder for the
+  TreeView, then refresh the data
 
 ```kotlin
-
-val tree = Tree.createTree<VirtualFile>()
+ val tree = Tree.createTree<VirtualFile>()
 
 tree.generator = NodeGenerator()
-
 tree.initTree()
 
-binding.treeview.apply {
-    // horizontalScroll support, default is false
+(binding.treeview as TreeView<VirtualFile>).apply {
     supportHorizontalScroll = true
     bindCoroutineScope(lifecycleScope)
-    this.tree = tree as Tree<Any>
-    binder = ViewBinder() as TreeViewBinder<Any>
-    nodeClickListener = binder
+    this.tree = tree
+    binder = ViewBinder()
+    nodeEventListener = binder
 }
 
 lifecycleScope.launch {
@@ -289,6 +283,9 @@ lifecycleScope.launch {
 
 ```
 
+- Done! Enjoy using it.
+
 ## Special thanks
-  - [Rosemoe](https://github.com/Rosemoe) (Help improve the Treeview horizontal sliding support)
+
+- [Rosemoe](https://github.com/Rosemoe) (Help improve the TreeView horizontal scrolling support)
 

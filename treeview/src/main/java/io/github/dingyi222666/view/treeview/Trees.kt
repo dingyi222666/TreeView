@@ -125,8 +125,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     override var rootNode: TreeNode<T>
         set(value) {
+            if (this::_rootNode.isInitialized) {
+                removeNode(_rootNode.id)
+            }
             _rootNode = value
-            setRootNode(value)
+            putNode(value.id, value)
         }
         get() = _rootNode
 
@@ -164,10 +167,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return allNodeAndChild.get(nodeId)
     }
 
-    private fun setRootNode(rootNode: TreeNode<*>) {
-        _rootNode = rootNode as TreeNode<T>
-        putNode(rootNode.id, rootNode)
-    }
 
     override fun createRootNode(): TreeNode<*> {
         val rootNode = createRootNodeUseGenerator() ?: DefaultTreeNode(
@@ -175,7 +174,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         )
         rootNode.isChild = true
         rootNode.expand = true
-        setRootNode(rootNode)
+        this.rootNode = rootNode as TreeNode<T>
         return rootNode
     }
 
