@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.updateLayoutParams
-import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
@@ -121,7 +120,7 @@ class MainActivity : AppCompatActivity() {
             oldItem: TreeNode<VirtualFile>,
             newItem: TreeNode<VirtualFile>
         ): Boolean {
-            return oldItem == newItem && oldItem.extra?.name == newItem.extra?.name
+            return oldItem == newItem && oldItem.data?.name == newItem.data?.name
         }
 
         override fun areItemsTheSame(
@@ -132,7 +131,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
-            if (node.extra?.isDir == true) {
+            if (node.data?.isDir == true) {
                 return 1
             }
             return 0
@@ -149,23 +148,22 @@ class MainActivity : AppCompatActivity() {
                 applyFile(holder, node)
             }
             val itemView = if (getItemViewType(node) == 1)
-                ItemDirBinding.bind(holder.currentItemView).space
-            else ItemFileBinding.bind(holder.currentItemView).space
+                ItemDirBinding.bind(holder.itemView).space
+            else ItemFileBinding.bind(holder.itemView).space
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = node.level * 10.dp
+                width = node.depth * 10.dp
             }
             //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
 
         }
 
         private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-            val binding = ItemFileBinding.bind(holder.currentItemView)
+            val binding = ItemFileBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
-
         }
 
         private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-            val binding = ItemDirBinding.bind(holder.currentItemView)
+            val binding = ItemDirBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
 
             binding
@@ -202,19 +200,18 @@ class MainActivity : AppCompatActivity() {
 
         override suspend fun refreshNode(
             targetNode: TreeNode<VirtualFile>,
-            oldNodeSet: Set<Int>,
-            withChild: Boolean,
+            oldChildNodeSet: Set<Int>,
             tree: AbstractTree<VirtualFile>,
-        ): List<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
+        ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
             delay(100)
-            val oldNodes = tree.getNodes(oldNodeSet)
+            val oldNodes = tree.getNodes(oldChildNodeSet)
 
-            val child = checkNotNull(targetNode.extra?.getChild()).toMutableList()
+            val child = checkNotNull(targetNode.data?.getChild()).toMutableSet()
 
-            val result = mutableListOf<TreeNode<VirtualFile>>()
+            val result = mutableSetOf<TreeNode<VirtualFile>>()
 
             oldNodes.forEach { node ->
-                val virtualFile = child.find { it.name == node.extra?.name }
+                val virtualFile = child.find { it.name == node.data?.name }
                 if (virtualFile != null) {
                     result.add(node)
                 }
@@ -228,7 +225,7 @@ class MainActivity : AppCompatActivity() {
             child.forEach {
                 result.add(
                     TreeNode(
-                        it, targetNode.level + 1, it.name,
+                        it, targetNode.depth + 1, it.name,
                         tree.generateId(), it.isDir && it.getChild().isNotEmpty(), false
                     )
                 )
@@ -237,9 +234,8 @@ class MainActivity : AppCompatActivity() {
             result
         }
 
-
         override fun createRootNode(): TreeNode<VirtualFile> {
-            return TreeNode(root, 0, root.name, 0, true, true)
+            return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
         }
 
 

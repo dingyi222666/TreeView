@@ -25,10 +25,6 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         0
     )
 
-    lateinit var tree: Tree<Any>
-
-    lateinit var binder: TreeViewBinder<Any>
-
     private var horizontalOffset = 0f
     private var maxChildWidth = 0f
     private var pointerId = 0
@@ -38,6 +34,9 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     private val maxHorizontalOffset
         get() = (maxChildWidth - width * 0.75f).coerceAtLeast(0f)
 
+    lateinit var tree: Tree<Any>
+
+    lateinit var binder: TreeViewBinder<Any>
 
     var nodeClickListener: TreeNodeListener<Any> = EmptyTreeNodeListener()
 
@@ -59,11 +58,6 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     class ViewHolder(
         rootView: View,
-        /**
-         * Please do not use the itemView field, use this field to get the real itemView.
-         * in some cases the itemView may wrap a parent View.
-         */
-        val currentItemView: View
     ) : RecyclerView.ViewHolder(rootView)
 
     private inner class Adapter(val binder: TreeViewBinder<Any>) :
@@ -71,7 +65,7 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val itemView = binder.createView(parent, viewType)
-            return ViewHolder(itemView, itemView)
+            return ViewHolder(itemView)
         }
 
         override fun getItemViewType(position: Int): Int {
@@ -81,13 +75,13 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val rootView = this@TreeView
             val node = getItem(position) as TreeNode<Any>
-            holder.currentItemView.setOnClickListener {
+            holder.itemView.setOnClickListener {
                 rootView.onClick(node, holder)
             }
             binder.bindView(holder, node, rootView as TreeNodeListener<Any>)
 
             if (supportHorizontalScroll) {
-                holder.currentItemView.apply {
+                holder.itemView.apply {
                     // Get child's preferred size
                     layoutParams =
                         LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -98,16 +92,16 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
                     // Apply a large width and measured height
                     layoutParams.apply {
                         width = 1000000
-                        height = holder.currentItemView.measuredHeight
+                        height = holder.itemView.measuredHeight
                     }
                     // Save current measured width for later usage
                     setTag(
                         R.id.tag_measured_width,
-                        holder.currentItemView.measuredWidth
+                        holder.itemView.measuredWidth
                     )
                 }
             } else {
-                holder.currentItemView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                holder.itemView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             }
         }
 
@@ -123,24 +117,34 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     }
 
+    fun bindCoroutineScope(coroutineScope: CoroutineScope) {
+        this.coroutineScope = coroutineScope
+    }
+
+    suspend fun refresh(fastRefresh: Boolean = false) {
+        if (!this::_adapter.isInitialized) {
+            initAdapter()
+        }
+
+        val list = tree.toSortedList(fastVisit = fastRefresh)
+
+        _adapter.submitList(list)
+
+    }
+
     private fun initAdapter() {
         _adapter = Adapter(binder)
         layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         adapter = _adapter
     }
 
-    fun bindCoroutineScope(coroutineScope: CoroutineScope) {
-        this.coroutineScope = coroutineScope
-    }
-
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         // Update horizontal offset
-        if (supportHorizontalScroll) {
-            horizontalOffset = horizontalOffset.coerceIn(0f, maxHorizontalOffset)
-        } else {
-            horizontalOffset = 0f
-        }
+        horizontalOffset = if (supportHorizontalScroll) {
+            horizontalOffset.coerceIn(0f, maxHorizontalOffset)
+        } else 0f
+
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -213,24 +217,14 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         canvas.restore()
     }
 
-    suspend fun refresh(fastRefresh: Boolean = false) {
-        if (!this::_adapter.isInitialized) {
-            initAdapter()
-        }
-
-        val list = tree.toSortedList(fastGet = fastRefresh)
-
-        _adapter.submitList(list)
-
-    }
-
     override fun onClick(node: TreeNode<Any>, holder: ViewHolder) {
         if (node.hasChild) {
             onToggle(node, !node.expand, holder)
         }
         nodeClickListener.onClick(node, holder)
+
         coroutineScope.launch {
-            tree.refresh(node as TreeNode<Any>)
+            tree.refresh(node)
             refresh(fastRefresh = true)
         }
 
@@ -244,7 +238,6 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         node.expand = isExpand
         nodeClickListener.onToggle(node, isExpand, holder)
     }
-
 
 }
 

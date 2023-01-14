@@ -7,12 +7,11 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 1. 100% written in kotlin.
 2. Customise, ~~in the future~~ you can implement your own tree data structure.
 3. Fetching data asynchronously, rather than loading it all at once
-4. Horizontal scroll support. (with bug)
+4. Horizontal scroll support. ~~(with bug)~~
 
 ## Screenshot
 
 ![output.webp](https://s2.loli.net/2023/01/14/GBwrFcm7xRvWP9O.webp)
-
 
 ## Usage
 
@@ -119,13 +118,13 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
         oldNodeSet: Set<Int>,
         withChild: Boolean,
         tree: AbstractTree<VirtualFile>,
-    ): List<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
+    ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
         // delay(100)
         val oldNodes = tree.getNodes(oldNodeSet)
 
-        val child = checkNotNull(targetNode.extra?.getChild()).toMutableList()
+        val child = checkNotNull(targetNode.extra?.getChild()).toMutableSet()
 
-        val result = mutableListOf<TreeNode<VirtualFile>>()
+        val result = mutableSetOf<TreeNode<VirtualFile>>()
 
         oldNodes.forEach { node ->
             val virtualFile = child.find { it.name == node.extra?.name }
@@ -153,7 +152,7 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
 
 
     override fun createRootNode(): TreeNode<VirtualFile> {
-        return TreeNode(root, 0, root.name, 0, true, true)
+        return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
     }
 
 
@@ -207,20 +206,9 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
         } else {
             applyFile(holder, node)
         }
-        /*val itemView = if (getItemViewType(node) == 1)
-            ItemDirBinding.bind(holder.currentItemView).space
-        else ItemFileBinding.bind(holder.currentItemView).space
-        itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = node.level * 10.dp
-        }
-
-        val itemView2 = if (getItemViewType(node) == 1)
-            ItemDirBinding.bind(holder.currentItemView).spaceRight
-        else ItemFileBinding.bind(holder.currentItemView).spaceRight
-        itemView2.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = this@MainActivity.resources.displayMetrics.widthPixels
-        }*/
-        holder.currentItemView.updatePadding(
+        
+        
+        holder.itemView.updatePadding(
             top = 0,
             right = 0,
             bottom = 0,
@@ -230,20 +218,20 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
     }
 
     private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-        val binding = ItemFileBinding.bind(holder.currentItemView)
+        val binding = ItemFileBinding.bind(holder.itemView)
         binding.tvName.text = node.name.toString()
 
     }
 
     private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-        val binding = ItemDirBinding.bind(holder.currentItemView)
+        val binding = ItemDirBinding.bind(holder.itemView)
         binding.tvName.text = node.name.toString()
 
         binding
             .ivArrow
             .animate()
             .rotation(if (node.expand) 90f else 0f)
-            .setDuration(0)
+            .setDuration(100)
             .start()
     }
 
@@ -271,28 +259,8 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeListener<Virtual
 
 - If you want to implement horizontal scrolling, then you may need to do like this
 
-    1. You may need to use two placeholder Views, one to display the blank left margin and the right
-       View to expand the width of the itemView so it can be scrolled
-    2. Modify your bindView code to something like the following implementation
-
 ```kotlin
-
-val itemView = if (getItemViewType(node) == 1)
-    ItemDirBinding.bind(holder.currentItemView).space
-else ItemFileBinding.bind(holder.currentItemView).space
-itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-    width = node.level * 10.dp
-}
-
-itemView = if (getItemViewType(node) == 1)
-    ItemDirBinding.bind(holder.currentItemView).spaceRight
-else ItemFileBinding.bind(holder.currentItemView).spaceRight
-
-itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-    // Set to screen width to ensure it can be scrolled
-    width = this@MainActivity.resources.displayMetrics.widthPixels
-}
-
+treeview.supportHorizontalScroll = true
 ```
 
 - Now you can create the tree structure and set up the node generator and node binder for the TreeView, then refresh the data
@@ -321,6 +289,6 @@ lifecycleScope.launch {
 
 ```
 
-### Tips
+## Special thanks
+  - [Rosemoe](https://github.com/Rosemoe) (Help improve the Treeview horizontal sliding support)
 
-This library is still an experimental library and we do not recommend using it in a production environment until it is fully developed.
