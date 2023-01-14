@@ -3,13 +3,36 @@ package io.github.dingyi222666.view.treeview
 import android.util.SparseArray
 import com.google.common.collect.HashMultimap
 
-class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
+
+interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
+
+    var generator: TreeNodeGenerator<T>
+
+    fun createRootNode(): TreeNode<*>
+
+    fun createRootNodeWithGenerator(): TreeNode<T>?
+
+    fun initTree() {
+        createRootNode()
+    }
+
+    suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int>
+    suspend fun getChildNodes(currentId: Int): Set<Int>
+
+    suspend fun refresh(node: TreeNode<T>): TreeNode<T>
+
+    fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>>
+
+
+}
+
+class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     private val allNode = SparseArray<TreeNode<*>>()
 
     private val allNodeAndChildWithId = HashMultimap.create<Int, Int>()
 
-    lateinit var generator: TreeNodeGenerator<T>
+    override lateinit var generator: TreeNodeGenerator<T>
 
     @Synchronized
     override fun generateId(): Int {
@@ -17,7 +40,7 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
         return idx
     }
 
-    fun createRootNode(): TreeNode<*> {
+    override fun createRootNode(): TreeNode<*> {
         val rootNode = createRootNodeWithGenerator() ?: DefaultTreeNode(
             extra = null,
             level = 0,
@@ -30,14 +53,14 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
         return rootNode
     }
 
-    fun createRootNodeWithGenerator(): TreeNode<T>? {
+    override fun createRootNodeWithGenerator(): TreeNode<T>? {
         return generator.createRootNode()
     }
 
-    fun initTree() {
-        createRootNode()
-    }
-
+    /*  override fun initTree() {
+          createRootNode()
+      }
+  */
     private fun addAllChild(parentNode: TreeNode<*>, currentNodes: Iterable<TreeNode<*>>) {
         parentNode.hasChild = true
         allNode.put(parentNode.id, parentNode)
@@ -66,17 +89,17 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
         removeAllChild(currentNode)
     }
 
-    suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int> {
+    override suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int> {
         return getChildNodes(currentNode.id)
     }
 
-    suspend fun getChildNodes(currentId: Int): Set<Int> {
+    override suspend fun getChildNodes(currentId: Int): Set<Int> {
         refresh(allNode.get(currentId) as TreeNode<T>)
         return allNodeAndChildWithId.get(currentId)
     }
 
 
-    suspend fun refresh(node: TreeNode<T>): TreeNode<T> {
+    override suspend fun refresh(node: TreeNode<T>): TreeNode<T> {
         val nodeList = generator.refreshNode(node, allNodeAndChildWithId.get(node.id), false, this)
         removeAllChild(node)
         addAllChild(node, nodeList)
@@ -136,9 +159,9 @@ class Tree<T : Any> internal constructor() : TreeVisitable<T>, TreeIdGenerator {
         }
     }
 
-    fun getNodes(oldList: Set<Int>): List<TreeNode<T>> {
+    override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> {
         return mutableListOf<TreeNode<T>>().apply {
-            oldList.forEach {
+            nodeIdList.forEach {
                 add(allNode[it] as TreeNode<T>)
             }
         }
@@ -153,7 +176,7 @@ interface TreeNodeGenerator<T : Any> {
         targetNode: TreeNode<T>,
         oldNodeSet: Set<Int>,
         withChild: Boolean = false,
-        tree: Tree<T>
+        tree: AbstractTree<T>
     ): List<TreeNode<T>>
 
     fun createRootNode(): TreeNode<T>? = null
@@ -216,7 +239,7 @@ open class TreeNode<T : Any>(
     }
 }
 
-suspend fun <T : Any> Tree<T>.toSortedList(
+suspend fun <T : Any> AbstractTree<T>.toSortedList(
     withExpandable: Boolean = true,
     fastGet: Boolean = true
 ): List<TreeNode<T>> {

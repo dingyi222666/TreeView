@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:background="?selectableItemBackground"
-    android:layout_height="50dp"
-    xmlns:tools="http://schemas.android.com/tools">
+    android:orientation="horizontal"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <View
+        android:id="@+id/space"
+        android:layout_width="0dp"
+        android:layout_height="match_parent" />
 
     <ImageView
         android:id="@+id/iv_arrow"
@@ -20,6 +28,11 @@
         android:drawableLeft="@drawable/baseline_folder_24"
         android:drawablePadding="12dp"
         android:gravity="center_vertical"
-        tools:text="@string/app_name"
-        android:textSize="18sp" />
+        android:textSize="18sp"
+        tools:text="@string/app_name" />
+
+    <View
+        android:id="@+id/spaceRight"
+        android:layout_width="0dp"
+        android:layout_height="match_parent" />
 </LinearLayout>

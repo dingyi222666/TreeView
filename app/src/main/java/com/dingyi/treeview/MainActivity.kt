@@ -6,10 +6,12 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
+import io.github.dingyi222666.view.treeview.AbstractTree
 import io.github.dingyi222666.view.treeview.Tree
 import io.github.dingyi222666.view.treeview.TreeNode
 import io.github.dingyi222666.view.treeview.TreeNodeGenerator
@@ -38,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         tree.initTree()
 
         binding.treeview.apply {
+            supportHorizontalScroll = true
             bindCoroutineScope(lifecycleScope)
             this.tree = tree as Tree<Any>
             binder = ViewBinder() as TreeViewBinder<Any>
@@ -50,6 +53,31 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+
+    private fun repeatCreateVirtualFile(parent: VirtualFile, size: Int): VirtualFile {
+
+        fun create(parentFile: VirtualFile): Pair<VirtualFile, VirtualFile> {
+            val inside = VirtualFile("Test5", true)
+            return VirtualFile("Test", true)
+                .addChild(
+                    VirtualFile("Test2", false),
+                    VirtualFile("Test3", false),
+                    VirtualFile("Test4", false),
+                    inside
+                ).apply {
+                    parentFile.addChild(this)
+                } to inside
+        }
+
+        var (currentRootVirtualFile, currentInsideVirtualFile) = create(parent)
+
+
+        IntRange(1, size).forEach { _ ->
+            currentInsideVirtualFile = create(currentInsideVirtualFile).second
+        }
+
+        return currentRootVirtualFile
+    }
 
     fun createVirtualFile(): VirtualFile {
         val root = VirtualFile("app", true)
@@ -70,7 +98,10 @@ class MainActivity : AppCompatActivity() {
                                 .addChild(
                                     VirtualFile("activity_main", false)
                                 )
-                        )
+                        ),
+                    VirtualFile("test", true).apply {
+                        repeatCreateVirtualFile(this, 20)
+                    }
                 ),
         )
         return root
@@ -117,21 +148,31 @@ class MainActivity : AppCompatActivity() {
             } else {
                 applyFile(holder, node)
             }
-            val itemView = holder.itemView
+            val itemView = if (getItemViewType(node) == 1)
+                ItemDirBinding.bind(holder.currentItemView).space
+            else ItemFileBinding.bind(holder.currentItemView).space
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                leftMargin = node.level * 7.dp
+                width = node.level * 10.dp
             }
+
+            val itemView2 = if (getItemViewType(node) == 1)
+                ItemDirBinding.bind(holder.currentItemView).spaceRight
+            else ItemFileBinding.bind(holder.currentItemView).spaceRight
+            itemView2.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = this@MainActivity.resources.displayMetrics.widthPixels
+            }
+            //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
 
         }
 
         private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-            val binding = ItemFileBinding.bind(holder.itemView)
+            val binding = ItemFileBinding.bind(holder.currentItemView)
             binding.tvName.text = node.name.toString()
 
         }
 
         private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-            val binding = ItemDirBinding.bind(holder.itemView)
+            val binding = ItemDirBinding.bind(holder.currentItemView)
             binding.tvName.text = node.name.toString()
 
             binding
@@ -170,7 +211,7 @@ class MainActivity : AppCompatActivity() {
             targetNode: TreeNode<VirtualFile>,
             oldNodeSet: Set<Int>,
             withChild: Boolean,
-            tree: Tree<VirtualFile>,
+            tree: AbstractTree<VirtualFile>,
         ): List<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
             delay(100)
             val oldNodes = tree.getNodes(oldNodeSet)
