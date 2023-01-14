@@ -120,7 +120,7 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
         withChild: Boolean,
         tree: AbstractTree<VirtualFile>,
     ): List<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
-        delay(100)
+        // delay(100)
         val oldNodes = tree.getNodes(oldNodeSet)
 
         val child = checkNotNull(targetNode.extra?.getChild()).toMutableList()
