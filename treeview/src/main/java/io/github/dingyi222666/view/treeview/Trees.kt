@@ -64,7 +64,7 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
     }
 
     /**
-     * Gets the list of children of the current node.
+     * Get the list of children of the current node.
      *
      * This method returns a list of the ids of the child nodes,
      * you may need to do further operations to get the list of child nodes
