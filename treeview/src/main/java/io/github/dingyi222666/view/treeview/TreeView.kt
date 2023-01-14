@@ -1,23 +1,20 @@
 package io.github.dingyi222666.view.treeview
 
 import android.content.Context
+import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver.OnGlobalLayoutListener
-import android.widget.HorizontalScrollView
-import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
+import kotlin.math.abs
 import kotlin.properties.Delegates
-import kotlin.properties.ObservableProperty
 
 class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
     RecyclerView(context, attrs, defStyleAttr), TreeNodeListener<Any> {
@@ -32,11 +29,24 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
     lateinit var binder: TreeViewBinder<Any>
 
+    private var horizontalOffset = 0f
+    private var maxChildWidth = 0f
+    private var pointerId = 0
+    private var pointerLastX = 0f
+    private var slopExceeded = false
+    private val horizontalTouchSlop = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics)
+    private val maxHorizontalOffset
+        get() = (maxChildWidth - width * 0.75f).coerceAtLeast(0f)
+
+
     var nodeClickListener: TreeNodeListener<Any> = EmptyTreeNodeListener()
 
     var supportHorizontalScroll by Delegates.observable(false) { _, old, new ->
-        if (!this::coroutineScope.isInitialized) {
+        if (!this::coroutineScope.isInitialized || old == new) {
             return@observable
+        }
+        if (!new) {
+            horizontalOffset = 0f
         }
         coroutineScope.launch {
             _adapter.refresh()
@@ -54,40 +64,13 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
          * in some cases the itemView may wrap a parent View.
          */
         val currentItemView: View
-    ) : RecyclerView.ViewHolder(rootView) {
-
-        internal var isLayoutFinish = false
-
-        fun requireCustomHorizontalScrollView(): CustomHorizontalScrollView {
-            return itemView as CustomHorizontalScrollView
-        }
-    }
-
-
-    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
-        super.onScrollChanged(l, t, oldl, oldt)
-    }
+    ) : RecyclerView.ViewHolder(rootView)
 
     private inner class Adapter(val binder: TreeViewBinder<Any>) :
         ListAdapter<TreeNode<*>, ViewHolder>(binder as DiffUtil.ItemCallback<TreeNode<*>>) {
 
-        internal val viewHolderList = arrayListOf<ViewHolder>()
-
-        private val viewHolderListLock = ReentrantReadWriteLock()
-
-        private var offsetX = 0
-
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val itemView = binder.createView(parent, viewType)
-            if (supportHorizontalScroll) {
-                val rootScrollView = CustomHorizontalScrollView(parent.context)
-                rootScrollView.isHorizontalScrollBarEnabled = false
-                rootScrollView.overScrollMode = OVER_SCROLL_NEVER
-
-                rootScrollView.layoutParams = MarginLayoutParams(itemView.layoutParams.width, itemView.layoutParams.height)
-                rootScrollView.addView(itemView, itemView.layoutParams.width, itemView.layoutParams.height)
-                return ViewHolder(rootScrollView, itemView)
-            }
             return ViewHolder(itemView, itemView)
         }
 
@@ -103,95 +86,28 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
             }
             binder.bindView(holder, node, rootView as TreeNodeListener<Any>)
 
-            if (!supportHorizontalScroll) {
-                return
-            }
-
-            viewHolderListLock.write {
-                if (!viewHolderList.contains(holder)) {
-                    viewHolderList.add(holder)
-                }
-            }
-
-            val rootScrollView = holder.requireCustomHorizontalScrollView()
-
-            rootScrollView.setOnCustomScrollChangeListener { _,
-                                                             scrollX,
-                                                             _,
-                                                             _,
-                                                             _ ->
-                offsetX = scrollX
-                viewHolderListLock.read {
-                    viewHolderList.forEach { scrollViewHolder ->
-                        if (scrollViewHolder !== holder /*&& !scrollViewHolder.isRecyclable*/) {
-                            scrollViewHolder.requireCustomHorizontalScrollView()
-                                .scrollTo(scrollX, 0)
-                        }
+            if (supportHorizontalScroll) {
+                holder.currentItemView.apply {
+                    // Get child's preferred size
+                    layoutParams =
+                        LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                    measure(
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                    )
+                    // Apply a large width and measured height
+                    layoutParams.apply {
+                        width = 1000000
+                        height = holder.currentItemView.measuredHeight
                     }
+                    // Save current measured width for later usage
+                    setTag(
+                        R.id.tag_measured_width,
+                        holder.currentItemView.measuredWidth
+                    )
                 }
-            }
-
-            rootScrollView.post {
-                if (!holder.isLayoutFinish) {
-                    rootScrollView.scrollTo(offsetX, 0);
-                    holder.isLayoutFinish = true
-                }
-            }
-
-            holder.itemView
-                .viewTreeObserver
-                .addOnGlobalLayoutListener {
-                    if (!holder.isLayoutFinish) {
-                        rootScrollView.scrollTo(offsetX, 0);
-                        holder.isLayoutFinish = true
-                    }
-                }
-        }
-
-        override fun onViewDetachedFromWindow(holder: ViewHolder) {
-            super.onViewDetachedFromWindow(holder)
-
-            if (!supportHorizontalScroll) {
-                return
-            }
-            viewHolderListLock.write {
-                holder.isLayoutFinish = false
-                viewHolderList.remove(holder)
-            }
-        }
-
-        override fun onViewAttachedToWindow(holder: ViewHolder) {
-            super.onViewAttachedToWindow(holder)
-
-            if (!supportHorizontalScroll) {
-                return
-            }
-
-            viewHolderListLock.write {
-                if (!viewHolderList.contains(holder)) {
-                    viewHolderList.add(holder)
-                }
-            }
-        }
-
-        override fun onViewRecycled(holder: ViewHolder) {
-            if (!supportHorizontalScroll) {
-                return
-            }
-
-            viewHolderListLock.write {
-                holder.isLayoutFinish = false
-                viewHolderList.remove(holder)
-            }
-        }
-
-        override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
-            super.onDetachedFromRecyclerView(recyclerView)
-            if (!supportHorizontalScroll) {
-                return
-            }
-            viewHolderListLock.write {
-                viewHolderList.clear()
+            } else {
+                holder.currentItemView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             }
         }
 
@@ -217,6 +133,85 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
         this.coroutineScope = coroutineScope
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // Update horizontal offset
+        if (supportHorizontalScroll) {
+            horizontalOffset = horizontalOffset.coerceIn(0f, maxHorizontalOffset)
+        } else {
+            horizontalOffset = 0f
+        }
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        if (supportHorizontalScroll) {
+            // Fetch children sizes and update max size of children
+            var maxWidth = 0
+            for (i in 0 until childCount) {
+                maxWidth = maxWidth.coerceAtLeast(
+                    (getChildAt(i).getTag(R.id.tag_measured_width) as Int?) ?: 0
+                )
+            }
+            maxChildWidth = maxWidth.toFloat()
+        } else {
+            maxChildWidth = 0f
+        }
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        // Called by super's dispatchTouchEvent
+        if (supportHorizontalScroll && horizontalOffset != 0f) {
+            // Use original event for self
+            return super.onTouchEvent(generateTranslatedMotionEvent(e, -horizontalOffset, 0f))
+        }
+        return super.onTouchEvent(e)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.pointerCount == 1 && supportHorizontalScroll) {
+            // Check for horizontal scrolling
+            // This should be done with original coordinates
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    // Take down the pointer id
+                    pointerId = ev.getPointerId(0)
+                    pointerLastX = ev.x
+                    slopExceeded = false
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    if (ev.getPointerId(ev.actionIndex) == pointerId) {
+                        if (abs(ev.x - pointerLastX) > horizontalTouchSlop) {
+                            slopExceeded = true
+                        }
+                        if (slopExceeded) {
+                            horizontalOffset = (pointerLastX - ev.x + horizontalOffset).coerceAtLeast(0f).coerceAtMost(maxHorizontalOffset)
+                            pointerLastX = ev.x
+                            invalidate()
+                        }
+                    }
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    pointerId = 0
+                }
+            }
+        }
+        if (supportHorizontalScroll && horizontalOffset != 0f) {
+            // Use fake coordinates for children
+            return super.dispatchTouchEvent(generateTranslatedMotionEvent(ev, horizontalOffset, 0f))
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        canvas.save()
+        // Translate canvas for rendering children
+        canvas.translate(-horizontalOffset, 0f)
+        super.dispatchDraw(canvas)
+        canvas.restore()
+    }
 
     suspend fun refresh(fastRefresh: Boolean = false) {
         if (!this::_adapter.isInitialized) {
@@ -252,38 +247,6 @@ class TreeView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
 
 
 }
-
-
-class CustomHorizontalScrollView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
-    HorizontalScrollView(context, attrs, defStyleAttr) {
-
-    var listener: OnCustomScrollChangeListener? = null
-
-    constructor(context: Context) : this(context, null)
-
-    constructor(context: Context, attrs: AttributeSet?) : this(context, attrs, 0)
-
-
-    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
-        super.onScrollChanged(l, t, oldl, oldt)
-        listener?.onCustomScrollChange(this, l, t, oldl, oldt)
-    }
-
-    internal fun setOnCustomScrollChangeListener(listener: OnCustomScrollChangeListener) {
-        this.listener = listener
-    }
-
-    fun interface OnCustomScrollChangeListener {
-        fun onCustomScrollChange(
-            view: CustomHorizontalScrollView,
-            scrollX: Int,
-            scrollY: Int,
-            oldScrollX: Int,
-            oldScrollY: Int
-        )
-    }
-}
-
 
 abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
     TreeNodeListener<T> {
