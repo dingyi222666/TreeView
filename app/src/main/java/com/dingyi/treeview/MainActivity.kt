@@ -154,13 +154,6 @@ class MainActivity : AppCompatActivity() {
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = node.level * 10.dp
             }
-
-            val itemView2 = if (getItemViewType(node) == 1)
-                ItemDirBinding.bind(holder.currentItemView).spaceRight
-            else ItemFileBinding.bind(holder.currentItemView).spaceRight
-            itemView2.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = this@MainActivity.resources.displayMetrics.widthPixels
-            }
             //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
 
         }
