@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.dingyi.treeview"
-        minSdk = 26
+        minSdk = 21
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"

@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
@@ -99,9 +100,14 @@ class MainActivity : AppCompatActivity() {
                                 )
                         ),
                     VirtualFile("test", true).apply {
-                        repeatCreateVirtualFile(this, 20)
-                    }
+                        repeatCreateVirtualFile(this, 40)
+                    },
                 ),
+            VirtualFile("test 20000 data", true).apply {
+                for (i in 1..20000) {
+                    addChild(VirtualFile("test $i", false))
+                }
+            },
         )
         return root
     }
@@ -142,7 +148,7 @@ class MainActivity : AppCompatActivity() {
             node: TreeNode<VirtualFile>,
             listener: TreeNodeEventListener<VirtualFile>
         ) {
-            if (node.hasChild) {
+            if (node.isChild) {
                 applyDir(holder, node)
             } else {
                 applyFile(holder, node)
@@ -178,10 +184,10 @@ class MainActivity : AppCompatActivity() {
 
 
         override fun onClick(node: TreeNode<VirtualFile>, holder: TreeView.ViewHolder) {
-            if (node.hasChild) {
+            if (node.isChild) {
                 applyDir(holder, node)
             } else {
-                applyFile(holder, node)
+                Toast.makeText(this@MainActivity, "Clicked ${node.name}", Toast.LENGTH_LONG).show()
             }
         }
 

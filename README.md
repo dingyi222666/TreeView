@@ -13,6 +13,11 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 
 ![output.webp](https://s2.loli.net/2023/01/14/GBwrFcm7xRvWP9O.webp)
 
+## TODO
+- [] Select/UnSelect Node
+- [] Better TreeNodeGenerator API
+- [] More api for operating the Node, e.g. Expand Node, Collapse Node
+
 ## Usage
 
 - Introduction Dependency
@@ -157,9 +162,10 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
 ```
 
 - Create a node binder to bind the node to the layout, and in most case also implement node click
-  events in this class 
-  
-  Note: For indenting itemView, we recommend to add a Space to the far left of your layout. The width of this space is the width of the indent.
+  events in this class
+
+  Note: For indenting itemView, we recommend to add a Space to the far left of your layout. The
+  width of this space is the width of the indent.
 
 ```kotlin
 inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<VirtualFile> {
@@ -198,7 +204,7 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<Vi
         node: TreeNode<VirtualFile>,
         listener: TreeNodeEventListener<VirtualFile>
     ) {
-        if (node.hasChild) {
+        if (node.isChild) {
             applyDir(holder, node)
         } else {
             applyFile(holder, node)
@@ -211,8 +217,6 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<Vi
         itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = node.depth * 10.dp
         }
-        //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
-
     }
 
     private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
@@ -234,11 +238,11 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<Vi
 
 
     override fun onClick(node: TreeNode<VirtualFile>, holder: TreeView.ViewHolder) {
-        if (node.hasChild) {
+        if (node.isChild) {
             applyDir(holder, node)
-        } else {
-            applyFile(holder, node)
-        }
+        } 
+      
+        // Do something when clicked node
     }
 
     override fun onToggle(
@@ -263,13 +267,12 @@ treeview.supportHorizontalScroll = true
   TreeView, then refresh the data
 
 ```kotlin
- val tree = Tree.createTree<VirtualFile>()
+val tree = Tree.createTree<VirtualFile>()
 
 tree.generator = NodeGenerator()
 tree.initTree()
 
 (binding.treeview as TreeView<VirtualFile>).apply {
-    supportHorizontalScroll = true
     bindCoroutineScope(lifecycleScope)
     this.tree = tree
     binder = ViewBinder()
@@ -288,4 +291,5 @@ lifecycleScope.launch {
 ## Special thanks
 
 - [Rosemoe](https://github.com/Rosemoe) (Help improve the TreeView horizontal scrolling support)
+- [HackerMadCat/Multimap](https://github.com/HackerMadCat/Multimap) (Multimap implementation in kotlin)
 

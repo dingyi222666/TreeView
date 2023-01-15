@@ -2,7 +2,6 @@ package io.github.dingyi222666.view.treeview
 
 import android.util.SparseArray
 import androidx.annotation.CallSuper
-import com.google.common.collect.HashMultimap
 
 /**
  * Abstract interface for tree structure.
@@ -119,7 +118,9 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     private val allNode = SparseArray<TreeNode<*>>()
 
-    private val allNodeAndChild = HashMultimap.create<Int, Int>()
+    private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
+            HashSet()
+        }
 
     private lateinit var _rootNode: TreeNode<T>
 
@@ -142,7 +143,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     }
 
     private fun removeAllChildNode(currentNodeId: Int) {
-        allNodeAndChild.removeAll(currentNodeId)
+        allNodeAndChild.remove(currentNodeId)
     }
 
     private fun removeNode(currentNodeId: Int) {
@@ -164,7 +165,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     }
 
     private fun getChildNodeForCache(nodeId: Int): Set<Int> {
-        return allNodeAndChild.get(nodeId)
+        return allNodeAndChild[nodeId] ?: emptySet()
     }
 
 
@@ -194,22 +195,10 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         }
     }
 
-    private fun addChild(parentNode: TreeNode<*>, currentNode: TreeNode<*>) {
-        parentNode.isChild = true
-        parentNode.hasChild = true
-
-        putNodeAndBindParentNode(currentNode, parentNode.id)
-
-    }
-
     private fun removeAllChild(currentNode: TreeNode<*>) {
         currentNode.hasChild = false
 
         removeAllChildNode(currentNode.id)
-    }
-
-    private fun remove(currentNode: TreeNode<*>) {
-        removeNode(currentNode.id)
     }
 
     override suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int> {
@@ -497,6 +486,18 @@ open class TreeNode<T : Any>(
         result = 31 * result + hasChild.hashCode()
         result = 31 * result + expand.hashCode()
         return result
+    }
+
+    /**
+     * Return [data] that is not null.
+     *
+     * At some time, you may have made it clear that [data] is not non-null,
+     * then you can call this method. If data is still null, then it will throw an exception.
+     *
+     * @return non-null [data]
+     */
+    fun requireData(): T {
+        return checkNotNull(data)
     }
 }
 

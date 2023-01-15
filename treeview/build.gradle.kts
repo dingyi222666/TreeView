@@ -11,9 +11,8 @@ android {
 
     defaultConfig {
         minSdk = 21
-        //targetSdk = 33
+        // targetSdk = 33
 
-        //  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -36,8 +35,6 @@ android {
 }
 
 mavenPublishing {
-    //publishToMavenCentral(SonatypeHost.DEFAULT)
-    // or when publishing to https://s01.oss.sonatype.org
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.S01)
 
     signAllPublications()
@@ -73,11 +70,7 @@ mavenPublishing {
 
 
 dependencies {
-
     compileOnly("androidx.core:core-ktx:1.9.0")
-    implementation("com.google.guava:guava:31.1-jre")
-
-    compileOnly("androidx.appcompat:appcompat:1.5.1")
+    compileOnly("androidx.appcompat:appcompat:1.6.0")
     compileOnly("com.google.android.material:material:1.7.0")
-
 }
