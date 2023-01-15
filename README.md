@@ -11,12 +11,12 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 
 ## Screenshot
 
-![output.webp](https://s2.loli.net/2023/01/14/GBwrFcm7xRvWP9O.webp)
+![output.webp](./screenshots/main.webp)
 
 ## TODO
-- [] Select/UnSelect Node
-- [] Better TreeNodeGenerator API
-- [] More api for operating the Node, e.g. Expand Node, Collapse Node
+- [ ] Select/UnSelect Node
+- [ ] Better TreeNodeGenerator API
+- [ ] More API to Operate Node. e.g. Expand Node, Collapse Node.
 
 ## Usage
 
