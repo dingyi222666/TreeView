@@ -192,7 +192,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         var fastRefreshOnLocal = fastRefresh
 
         if (node != null) {
-            tree.refresh(node)
+            tree.refreshWithChild(node,withExpandable = true)
             fastRefreshOnLocal = true
         }
 
@@ -214,7 +214,6 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         horizontalOffset = if (supportHorizontalScroll) {
             horizontalOffset.coerceIn(0f, maxHorizontalOffset)
         } else 0f
-
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {

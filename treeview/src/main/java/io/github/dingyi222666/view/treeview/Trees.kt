@@ -6,7 +6,7 @@ import androidx.annotation.CallSuper
 /**
  * Abstract interface for tree structure.
  *
- * ou can implement your own tree structure, this is also supported.
+ * You can implement your own tree structure.
  */
 interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
 
@@ -100,6 +100,18 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
     suspend fun refresh(node: TreeNode<T>): TreeNode<T>
 
     /**
+     * Refresh the current node and it‘s child.
+     *
+     * Refreshing the current node and also refreshes its children.
+     *
+     * @param [withExpandable] Whether to refresh only the expanded child nodes, otherwise all will be refreshed.
+     *
+     * @see [TreeNodeGenerator]
+     */
+    suspend fun refreshWithChild(node: TreeNode<T>, withExpandable: Boolean = true): TreeNode<T>
+
+
+    /**
      * Get the list of node from the given list of id
      */
     fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>>
@@ -119,8 +131,8 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     private val allNode = SparseArray<TreeNode<*>>()
 
     private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
-            HashSet()
-        }
+        HashSet()
+    }
 
     private lateinit var _rootNode: TreeNode<T>
 
@@ -214,10 +226,34 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return allNode.get(id) as TreeNode<T>
     }
 
-    override suspend fun refresh(node: TreeNode<T>): TreeNode<T> {
+    internal suspend fun refreshInternal(node: TreeNode<T>): Set<TreeNode<T>> {
         val nodeList = generator.refreshNode(node, getChildNodeForCache(node.id), this)
         removeAllChild(node)
         addAllChild(node, nodeList)
+        return nodeList
+    }
+
+    override suspend fun refresh(node: TreeNode<T>): TreeNode<T> {
+        refreshInternal(node)
+        return node
+    }
+
+    override suspend fun refreshWithChild(node: TreeNode<T>, withExpandable: Boolean): TreeNode<T> {
+        val willRefreshNodes = ArrayDeque<TreeNode<T>>()
+
+        willRefreshNodes.add(node)
+
+        while (willRefreshNodes.isNotEmpty()) {
+            val currentRefreshNode = willRefreshNodes.removeFirst()
+            val childNodes = refreshInternal(currentRefreshNode)
+            for (childNode in childNodes) {
+                if (withExpandable && !childNode.expand) {
+                    continue
+                }
+                willRefreshNodes.add(childNode)
+            }
+        }
+
         return node
     }
 
@@ -259,12 +295,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
                 continue
             }
 
-            val children: Set<Int> =
-                if (fastVisit) getChildNodeForCache(currentNode.id) else getChildNodes(
-                    currentNode.id
-                )
+            val children = if (fastVisit)
+                getChildNodeForCache(currentNode.id)
+            else getChildNodes(currentNode.id)
 
-            if (children.isNullOrEmpty()) {
+            if (children.isEmpty()) {
                 continue
             }
 
@@ -316,9 +351,7 @@ interface TreeNodeGenerator<T : Any> {
      * @return List of child nodes of the target node
      */
     suspend fun refreshNode(
-        targetNode: TreeNode<T>,
-        oldChildNodeSet: Set<Int>,
-        tree: AbstractTree<T>
+        targetNode: TreeNode<T>, oldChildNodeSet: Set<Int>, tree: AbstractTree<T>
     ): Set<TreeNode<T>>
 
     /**
