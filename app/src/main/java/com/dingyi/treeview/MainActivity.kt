@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
-            if (node.data?.isDir == true) {
+            if (node.isChild) {
                 return 1
             }
             return 0

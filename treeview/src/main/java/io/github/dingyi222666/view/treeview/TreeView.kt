@@ -179,16 +179,24 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * Call this method to refresh the node data to display on the TreeView.
      *
      * @param [fastRefresh] Whether to quick refresh or not.
+     * @param [node] The node to be refreshed; if the value is not null, only the child nodes under the node will be refreshed.
      *
      * If ture, only data from the cache will be fetched instead of calling the [TreeNodeGenerator]
      * @see [AbstractTree.toSortedList]
      */
-    suspend fun refresh(fastRefresh: Boolean = false) {
+    suspend fun refresh(fastRefresh: Boolean = false, node: TreeNode<T>? = null) {
         if (!this::_adapter.isInitialized) {
             initAdapter()
         }
 
-        val list = tree.toSortedList(fastVisit = fastRefresh)
+        var fastRefreshOnLocal = fastRefresh
+
+        if (node != null) {
+            tree.refresh(node)
+            fastRefreshOnLocal = true
+        }
+
+        val list = tree.toSortedList(fastVisit = fastRefreshOnLocal)
 
         _adapter.submitList(list)
 
@@ -293,8 +301,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         }
 
         coroutineScope.launch {
-            tree.refresh(node)
-            refresh(fastRefresh = true)
+            refresh(fastRefresh = true,node = node)
         }
 
     }
