@@ -193,7 +193,7 @@ inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<Vi
     }
 
     override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
-        if (node.data?.isDir == true) {
+        if (node.isChild == true) {
             return 1
         }
         return 0
