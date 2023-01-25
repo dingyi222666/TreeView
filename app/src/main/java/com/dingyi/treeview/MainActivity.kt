@@ -205,42 +205,25 @@ class MainActivity : AppCompatActivity() {
     inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
 
         private val root = createVirtualFile()
-        override suspend fun refreshNode(
-            targetNode: TreeNode<VirtualFile>,
-            oldChildNodeSet: Set<Int>,
-            tree: AbstractTree<VirtualFile>,
-        ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
 
-            delay(100)
+        override suspend fun fetchNodeChildData(targetNode: TreeNode<VirtualFile>): Set<VirtualFile> {
+            return targetNode.requireData().getChild().toMutableSet()
+        }
 
-            val oldNodes = tree.getNodes(oldChildNodeSet)
-
-            val child = checkNotNull(targetNode.data?.getChild()).toMutableSet()
-
-            val result = mutableSetOf<TreeNode<VirtualFile>>()
-
-            oldNodes.forEach { node ->
-                val virtualFile = child.find { it.name == node.data?.name }
-                if (virtualFile != null) {
-                    result.add(node)
-                }
-                child.remove(virtualFile)
-            }
-
-            if (child.isEmpty()) {
-                return@withContext result
-            }
-
-            child.forEach {
-                result.add(
-                    TreeNode(
-                        it, targetNode.depth + 1, it.name,
-                        tree.generateId(), it.isDir && it.getChild().isNotEmpty(), it.isDir, false
-                    )
-                )
-            }
-
-            result
+        override fun createNode(
+            parentNode: TreeNode<VirtualFile>,
+            currentData: VirtualFile,
+            tree: AbstractTree<VirtualFile>
+        ): TreeNode<VirtualFile> {
+            return TreeNode(
+                currentData,
+                parentNode.depth + 1,
+                currentData.name,
+                tree.generateId(),
+                currentData.isDir && currentData.getChild().isNotEmpty(),
+                currentData.isDir,
+                false
+            )
         }
 
         override fun createRootNode(): TreeNode<VirtualFile> {
@@ -271,6 +254,28 @@ class VirtualFile(
     }
 
     fun getChild(): List<VirtualFile> = child
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as VirtualFile
+
+        if (name != other.name) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + isDir.hashCode()
+        if (this::parent.isInitialized) {
+            result = 31 * result + parent.hashCode()
+        }
+
+        return result
+    }
+
 
 }
 

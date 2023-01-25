@@ -8,7 +8,7 @@ import android.util.SparseArray
  */
 class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
-    private val allNode = SparseArray<TreeNode<*>>()
+    private val allNode = SparseArray<TreeNode<T>>()
 
     private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
         HashSet()
@@ -43,7 +43,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         removeAllChildNode(currentNodeId)
     }
 
-    private fun putNode(id: Int, node: TreeNode<*>) {
+    private fun putNode(id: Int, node: TreeNode<T>) {
         allNode.put(id, node)
     }
 
@@ -51,9 +51,14 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         allNodeAndChild.put(nodeId, childNodeId)
     }
 
-    private fun putNodeAndBindParentNode(node: TreeNode<*>, parentNodeId: Int) {
+    private fun putNodeAndBindParentNode(node: TreeNode<T>, parentNodeId: Int) {
         putNode(node.id, node)
         putChildNode(parentNodeId, node.id)
+    }
+
+    private fun removeAndAddAllChild(node: TreeNode<T>, list: Iterable<TreeNode<T>>) {
+        removeAllChild(node)
+        addAllChild(node, list)
     }
 
     private fun getChildNodeForCache(nodeId: Int): Set<Int> {
@@ -62,17 +67,16 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
 
     override fun createRootNode(): TreeNode<*> {
-        val rootNode = createRootNodeUseGenerator() ?: TreeNode(
+        val rootNode = createRootNodeUseGenerator() ?: TreeNode<T>(
             data = null, depth = 0, name = "Root", id = 0
         )
         rootNode.isChild = true
         rootNode.expand = true
-        this.rootNode = rootNode as TreeNode<T>
+        this.rootNode = rootNode
         return rootNode
     }
 
-
-    private fun addAllChild(parentNode: TreeNode<*>, currentNodes: Iterable<TreeNode<*>>) {
+    private fun addAllChild(parentNode: TreeNode<T>, currentNodes: Iterable<TreeNode<T>>) {
         parentNode.isChild = true
         parentNode.hasChild = true
 
@@ -106,11 +110,31 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return allNode.get(id) as TreeNode<T>
     }
 
-    private suspend fun refreshInternal(node: TreeNode<T>): Set<TreeNode<T>> {
-        val nodeList = generator.refreshNode(node, getChildNodeForCache(node.id), this)
-        removeAllChild(node)
-        addAllChild(node, nodeList)
-        return nodeList
+
+    private suspend fun refreshInternal(parentNode: TreeNode<T>): Set<TreeNode<T>> {
+        val childNodeCache = getChildNodeForCache(parentNode.id)
+
+        val targetChildNodeList = mutableSetOf<TreeNode<T>>()
+        val childNodeData = generator.fetchNodeChildData(parentNode)
+
+        if (childNodeData.isEmpty()) {
+            removeAndAddAllChild(parentNode, targetChildNodeList)
+            return targetChildNodeList
+        }
+
+        val oldNodes = getNodesInternal(childNodeCache)
+
+        for (data in childNodeData) {
+            val targetNode =
+                oldNodes.find { it.data == data } ?: generator.createNode(parentNode, data, this)
+            oldNodes.remove(targetNode)
+            targetChildNodeList.add(targetNode)
+        }
+
+
+        removeAndAddAllChild(parentNode, targetChildNodeList)
+
+        return targetChildNodeList
     }
 
     override suspend fun refresh(node: TreeNode<T>): TreeNode<T> {
@@ -124,19 +148,28 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         willRefreshNodes.add(node)
 
         while (willRefreshNodes.isNotEmpty()) {
-            val currentRefreshNode = willRefreshNodes.removeFirst()
+            val currentRefreshNode = willRefreshNodes.removeLast()
             val childNodes = refreshInternal(currentRefreshNode)
             for (childNode in childNodes) {
                 if (withExpandable && !childNode.expand) {
                     continue
                 }
-                willRefreshNodes.add(childNode)
+                willRefreshNodes.addLast(childNode)
             }
         }
 
         return node
     }
 
+    private fun getNodesInternal(nodeIdList: Set<Int>): MutableList<TreeNode<T>> =
+        mutableListOf<TreeNode<T>>().apply {
+            nodeIdList.forEach {
+                add(getNode(it))
+            }
+        }
+
+    override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
+        getNodesInternal(nodeIdList)
 
     companion object {
         @get:Synchronized
@@ -191,13 +224,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         }
     }
 
-    override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> {
-        return mutableListOf<TreeNode<T>>().apply {
-            nodeIdList.forEach {
-                add(getNode(it))
-            }
-        }
-    }
 }
 
 /**
@@ -212,27 +238,24 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 interface TreeNodeGenerator<T : Any> {
 
     /**
-     * Refreshes the (child) data of the node.
+     * Fetch data from child nodes based on the current node.
      *
-     * Implement this method to refresh the child node data of the [targetNode].
+     * You will need to fetch the data yourself (which can be asynchronous)
      *
-     * You will need to fetch the data yourself (which can be asynchronous) and
-     * convert them into a list of child nodes to return
-     *
-     * @param [targetNode] Need to get target node data for child nodes (incoming node)
-     * @param [oldChildNodeSet] A list of old child nodes.
-     *
-     * You need to compare the fetched data with the old list of child nodes to determine if the data represented by certain child nodes still exists.
-     *
-     * If they exist, then you need to add the old nodes to the return list.
-     *
-     * @param [tree] Target tree
-     *
-     * @return List of child nodes of the target node
+     * @return Data list of the children of the current node.
      */
-    suspend fun refreshNode(
-        targetNode: TreeNode<T>, oldChildNodeSet: Set<Int>, tree: AbstractTree<T>
-    ): Set<TreeNode<T>>
+    suspend fun fetchNodeChildData(targetNode: TreeNode<T>): Set<T>
+
+    /**
+     * Given the data and the parent node, create a new node.
+     *
+     * This method is only called to create new nodes when the tree data structure require it
+     *
+     * @param [currentData] Need to create node data
+     * @param [parentNode] Need to create the parent node of the node
+     * @param [tree] Target tree
+     */
+    fun createNode(parentNode: TreeNode<T>, currentData: T, tree: AbstractTree<T>): TreeNode<T>
 
     /**
      * Create a root node.
