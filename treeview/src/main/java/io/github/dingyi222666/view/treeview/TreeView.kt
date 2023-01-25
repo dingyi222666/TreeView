@@ -1,5 +1,6 @@
 package io.github.dingyi222666.view.treeview
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
@@ -232,6 +233,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
         // Called by super's dispatchTouchEvent
         if (supportHorizontalScroll && horizontalOffset != 0f) {

@@ -62,8 +62,8 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
 
     override fun createRootNode(): TreeNode<*> {
-        val rootNode = createRootNodeUseGenerator() ?: DefaultTreeNode(
-            extra = null, level = 0, name = "Root", id = 0
+        val rootNode = createRootNodeUseGenerator() ?: TreeNode(
+            data = null, depth = 0, name = "Root", id = 0
         )
         rootNode.isChild = true
         rootNode.expand = true

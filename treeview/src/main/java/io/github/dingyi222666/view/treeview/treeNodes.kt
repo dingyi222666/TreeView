@@ -13,6 +13,8 @@ open class TreeNode<T : Any>(
      * The data in the node.
      *
      * This data can be provided to the [TreeViewBinder] to bind data to the view.
+     *
+     * Note: The data needs to override the equals method and the tree structure need to determine the node to create based on whether the data is equal or not
      */
     var data: T?,
 
@@ -99,8 +101,4 @@ open class TreeNode<T : Any>(
     }
 }
 
-
-class DefaultTreeNode(
-    extra: Any?, level: Int, name: String?, id: Int
-) : TreeNode<Any>(extra, level, name, id)
 
