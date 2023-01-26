@@ -203,6 +203,134 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
     }
 
+
+    /**
+     * Switch the state of the node.
+     *
+     * If the node is a leaf node, then the method will do nothing.
+     * Otherwise, it will switch the expand and collapse state of the node.
+     *
+     * @param [node] Node that need to switch node state
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun toggleNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+        if (!node.isChild) {
+            return
+        }
+        if (node.expand) {
+            collapseNode(node, fullRefresh)
+        } else {
+            expandNode(node, fullRefresh)
+        }
+    }
+
+    /**
+     * Expand all nodes.
+     *
+     * Start from the root node and set all non leaf nodes to expanded state
+     *
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun expandAll(fullRefresh: Boolean = false) {
+        tree.expandAll(fullRefresh)
+        refresh(fullRefresh)
+    }
+
+    /**
+     * Expand the given node and its children start from it
+     *
+     * Expand the node from the given node, which also includes all its children.
+     *
+     * @param [node] Node to be expanded
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
+        tree.expandAll(node, fullRefresh)
+        refresh(fullRefresh,node)
+    }
+
+    /**
+     * expand node.
+     *
+     * This will expand the children of the given node with no change in the state of the children.
+     * This is especially different from [expandAll].
+     *
+     * @param [node] Node to be expanded
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+        tree.expandNode(node, fullRefresh)
+        refresh(fullRefresh,node)
+    }
+
+    /**
+     * Collapse all nodes.
+     *
+     * Start from the root node and set all non leaf nodes to collapsed state
+     *
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun collapseAll(fullRefresh: Boolean = false) {
+        tree.collapseAll(fullRefresh)
+        refresh(fullRefresh)
+    }
+
+    /**
+     * Collapse the given node and its children start from it
+     *
+     * Collapse the node from the given node, which also includes all its children.
+     *
+     * @param [node] Node to be collapsed
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
+        tree.collapseAll(node, fullRefresh)
+        refresh(fullRefresh,node)
+    }
+
+    /**
+     * collapse node.
+     *
+     * This will collapse the children of the given node with no change in the state of the children.
+     * This is especially different from [collapseAll].
+     *
+     * @param [node] Node to be collapsed
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+        tree.collapseNode(node, fullRefresh)
+        refresh(fullRefresh,node)
+    }
+
+    /**
+     * Expand nodes of the given depth
+     *
+     * This will expand the nodes that have the given depth and does not include its children
+     *
+     * @param [depth] Given depth
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+     */
+    suspend fun collapseFrom(depth: Int, fullRefresh: Boolean = false) {
+        tree.collapseFrom(depth, fullRefresh)
+        refresh(fullRefresh)
+    }
+
+
+    /**
+     * Collapse the nodes of the given depth
+     *
+     * This will collapse the nodes that have the given depth and does not include its children
+     *
+     * @param [depth] Given depth
+     * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
+    .
+     */
+    suspend fun expandUntil(depth: Int, fullRefresh: Boolean = false) {
+        tree.expandUntil(depth, fullRefresh)
+        refresh(fullRefresh)
+    }
+
+
     private fun initAdapter() {
         _adapter = Adapter(binder)
         layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
