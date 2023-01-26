@@ -1,27 +1,29 @@
 package com.dingyi.treeview
 
 import android.content.res.Resources
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Space
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
-import io.github.dingyi222666.view.treeview.AbstractTree
+import io.github.dingyi222666.view.treeview.Branch
+import io.github.dingyi222666.view.treeview.CreateDataScope
+import io.github.dingyi222666.view.treeview.DataSource
+import io.github.dingyi222666.view.treeview.Leaf
 import io.github.dingyi222666.view.treeview.Tree
 import io.github.dingyi222666.view.treeview.TreeNode
-import io.github.dingyi222666.view.treeview.TreeNodeGenerator
 import io.github.dingyi222666.view.treeview.TreeNodeEventListener
 import io.github.dingyi222666.view.treeview.TreeView
 import io.github.dingyi222666.view.treeview.TreeViewBinder
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import io.github.dingyi222666.view.treeview.buildTree
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
@@ -34,12 +36,9 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
-        val tree = Tree.createTree<VirtualFile>()
+        val tree = createTree()
 
-        tree.generator = NodeGenerator()
-        tree.initTree()
-
-        (binding.treeview as TreeView<VirtualFile>).apply {
+        (binding.treeview as TreeView<DataSource<String>>).apply {
             supportHorizontalScroll = true
             bindCoroutineScope(lifecycleScope)
             this.tree = tree
@@ -54,65 +53,27 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun repeatCreateVirtualFile(parent: VirtualFile, size: Int): VirtualFile {
-
-        fun create(parentFile: VirtualFile): Pair<VirtualFile, VirtualFile> {
-            val inside = VirtualFile("Test5", true)
-            return VirtualFile("Test", true)
-                .addChild(
-                    VirtualFile("Test2", false),
-                    VirtualFile("Test3", false),
-                    VirtualFile("Test4", false),
-                    inside
-                ).apply {
-                    parentFile.addChild(this)
-                } to inside
-        }
-
-        var (currentRootVirtualFile, currentInsideVirtualFile) = create(parent)
-
-
-        IntRange(1, size).forEach { _ ->
-            currentInsideVirtualFile = create(currentInsideVirtualFile).second
-        }
-
-        return currentRootVirtualFile
-    }
-
-    fun createVirtualFile(): VirtualFile {
-        val root = VirtualFile("app", true)
-        root.addChild(
-            VirtualFile("src", true)
-                .addChild(
-                    VirtualFile("main", true)
-                        .addChild(
-                            VirtualFile("java", true)
-                                .addChild(
-                                    VirtualFile("com.dingyi.treeview", true)
-                                        .addChild(VirtualFile("MainActivity.kt", false))
-                                )
-                        ),
-                    VirtualFile("res", true)
-                        .addChild(
-                            VirtualFile("layout", true)
-                                .addChild(
-                                    VirtualFile("activity_main", false)
-                                )
-                        ),
-                    VirtualFile("test", true).apply {
-                        repeatCreateVirtualFile(this, 40)
-                    },
-                ),
-            VirtualFile("test 20000 data", true).apply {
-                for (i in 1..20000) {
-                    addChild(VirtualFile("test $i", false))
+    private fun createTree(): Tree<DataSource<String>> {
+        val dataCreator: CreateDataScope<String> = { _, _ -> UUID.randomUUID().toString() }
+        return buildTree(dataCreator) {
+            Branch("app") {
+                Branch("src") {
+                    Branch("main") {
+                        Branch("java") {
+                            Branch("com.dingyi.treeview") {
+                                Leaf("MainActivity.kt")
+                            }
+                        }
+                        Branch("res") {}
+                        Leaf("AndroidManifest.xml")
+                    }
                 }
-            },
-        )
-        return root
+            }
+        }
     }
 
-    inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<VirtualFile> {
+    inner class ViewBinder : TreeViewBinder<DataSource<String>>(),
+        TreeNodeEventListener<DataSource<String>> {
 
         override fun createView(parent: ViewGroup, viewType: Int): View {
             return if (viewType == 1) {
@@ -123,20 +84,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun areContentsTheSame(
-            oldItem: TreeNode<VirtualFile>,
-            newItem: TreeNode<VirtualFile>
+            oldItem: TreeNode<DataSource<String>>,
+            newItem: TreeNode<DataSource<String>>
         ): Boolean {
             return oldItem == newItem && oldItem.data?.name == newItem.data?.name
         }
 
         override fun areItemsTheSame(
-            oldItem: TreeNode<VirtualFile>,
-            newItem: TreeNode<VirtualFile>
+            oldItem: TreeNode<DataSource<String>>,
+            newItem: TreeNode<DataSource<String>>
         ): Boolean {
             return oldItem.id == newItem.id
         }
 
-        override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
+        override fun getItemViewType(node: TreeNode<DataSource<String>>): Int {
             if (node.isChild) {
                 return 1
             }
@@ -145,8 +106,8 @@ class MainActivity : AppCompatActivity() {
 
         override fun bindView(
             holder: TreeView.ViewHolder,
-            node: TreeNode<VirtualFile>,
-            listener: TreeNodeEventListener<VirtualFile>
+            node: TreeNode<DataSource<String>>,
+            listener: TreeNodeEventListener<DataSource<String>>
         ) {
             if (node.isChild) {
                 applyDir(holder, node)
@@ -154,23 +115,20 @@ class MainActivity : AppCompatActivity() {
                 applyFile(holder, node)
             }
 
-            val itemView = if (getItemViewType(node) == 1)
-                ItemDirBinding.bind(holder.itemView).space
-            else ItemFileBinding.bind(holder.itemView).space
+            val itemView = holder.itemView.findViewById<Space>(R.id.space)
 
             itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = node.depth * 10.dp
+                width = node.depth * 22.dp
             }
-            //itemView.updatePadding(top = 0,right = 0, bottom = 0, left = node.level * 10.dp)
 
         }
 
-        private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
+        private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
             val binding = ItemFileBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
         }
 
-        private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
+        private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
             val binding = ItemDirBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
 
@@ -178,12 +136,12 @@ class MainActivity : AppCompatActivity() {
                 .ivArrow
                 .animate()
                 .rotation(if (node.expand) 90f else 0f)
-                .setDuration(0)
+                .setDuration(200)
                 .start()
         }
 
 
-        override fun onClick(node: TreeNode<VirtualFile>, holder: TreeView.ViewHolder) {
+        override fun onClick(node: TreeNode<DataSource<String>>, holder: TreeView.ViewHolder) {
             if (node.isChild) {
                 applyDir(holder, node)
             } else {
@@ -192,7 +150,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onToggle(
-            node: TreeNode<VirtualFile>,
+            node: TreeNode<DataSource<String>>,
             isExpand: Boolean,
             holder: TreeView.ViewHolder
         ) {
@@ -202,82 +160,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
-
-        private val root = createVirtualFile()
-
-        override suspend fun fetchNodeChildData(targetNode: TreeNode<VirtualFile>): Set<VirtualFile> {
-            return targetNode.requireData().getChild().toMutableSet()
-        }
-
-        override fun createNode(
-            parentNode: TreeNode<VirtualFile>,
-            currentData: VirtualFile,
-            tree: AbstractTree<VirtualFile>
-        ): TreeNode<VirtualFile> {
-            return TreeNode(
-                currentData,
-                parentNode.depth + 1,
-                currentData.name,
-                tree.generateId(),
-                currentData.isDir && currentData.getChild().isNotEmpty(),
-                currentData.isDir,
-                false
-            )
-        }
-
-        override fun createRootNode(): TreeNode<VirtualFile> {
-            return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
-        }
-    }
 
 }
 
-class VirtualFile(
-    val name: String,
-    val isDir: Boolean
-) {
-
-    private lateinit var parent: VirtualFile
-
-    private val child = mutableListOf<VirtualFile>()
-
-    fun addChild(file: VirtualFile): VirtualFile {
-        child.add(file)
-        file.parent = this
-        return this
-    }
-
-    fun addChild(vararg virtualFile: VirtualFile): VirtualFile {
-        virtualFile.forEach { addChild(it) }
-        return this
-    }
-
-    fun getChild(): List<VirtualFile> = child
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as VirtualFile
-
-        if (name != other.name) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + isDir.hashCode()
-        if (this::parent.isInitialized) {
-            result = 31 * result + parent.hashCode()
-        }
-
-        return result
-    }
-
-
-}
 
 inline val Int.dp: Int
     get() = (Resources.getSystem().displayMetrics.density * this + 0.5f).toInt()
