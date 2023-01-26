@@ -65,17 +65,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return allNodeAndChild[nodeId] ?: emptySet()
     }
 
-
-    override fun createRootNode(): TreeNode<*> {
-        val rootNode = createRootNodeUseGenerator() ?: TreeNode<T>(
-            data = null, depth = 0, name = "Root", id = 0
-        )
-        rootNode.isChild = true
-        rootNode.expand = true
-        this.rootNode = rootNode
-        return rootNode
-    }
-
     private fun addAllChild(parentNode: TreeNode<T>, currentNodes: Iterable<TreeNode<T>>) {
         parentNode.isChild = true
         parentNode.hasChild = true
@@ -97,6 +86,16 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         removeAllChildNode(currentNode.id)
     }
 
+    override fun createRootNode(): TreeNode<*> {
+        val rootNode = createRootNodeUseGenerator() ?: TreeNode<T>(
+            data = null, depth = 0, name = "Root", id = 0
+        )
+        rootNode.isChild = true
+        rootNode.expand = true
+        this.rootNode = rootNode
+        return rootNode
+    }
+
     override suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int> {
         return getChildNodes(currentNode.id)
     }
@@ -109,6 +108,16 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     override fun getNode(id: Int): TreeNode<T> {
         return allNode.get(id) as TreeNode<T>
     }
+
+    private fun getNodesInternal(nodeIdList: Set<Int>): MutableList<TreeNode<T>> =
+        mutableListOf<TreeNode<T>>().apply {
+            nodeIdList.forEach {
+                add(getNode(it))
+            }
+        }
+
+    override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
+        getNodesInternal(nodeIdList)
 
 
     private suspend fun refreshInternal(parentNode: TreeNode<T>): Set<TreeNode<T>> {
@@ -161,15 +170,44 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return node
     }
 
-    private fun getNodesInternal(nodeIdList: Set<Int>): MutableList<TreeNode<T>> =
-        mutableListOf<TreeNode<T>>().apply {
-            nodeIdList.forEach {
-                add(getNode(it))
-            }
-        }
 
-    override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
-        getNodesInternal(nodeIdList)
+    override suspend fun collapseAll(fullRefresh: Boolean) {
+        visitInternal(CollapseAllTreeVisitor(), rootNode, !fullRefresh)
+    }
+
+    override suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean) {
+        visitInternal(CollapseAllTreeVisitor(), node, !fullRefresh)
+    }
+
+    override suspend fun collapseFrom(depth: Int, fullRefresh: Boolean) {
+        visitInternal(CollapseDepthTreeVisitor(depth), rootNode, !fullRefresh)
+    }
+
+    override suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean) {
+        node.expand = false
+        if (fullRefresh) {
+            refreshWithChild(node, true)
+        }
+    }
+
+    override suspend fun expandAll(fullRefresh: Boolean) {
+        visitInternal(ExpandAllTreeVisitor(), rootNode, !fullRefresh)
+    }
+
+    override suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean) {
+        visitInternal(ExpandAllTreeVisitor(), node, !fullRefresh)
+    }
+
+    override suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean) {
+        node.expand = true
+        if (fullRefresh) {
+            refreshWithChild(node, true)
+        }
+    }
+
+    override suspend fun expandUntil(depth: Int, fullRefresh: Boolean) {
+        visitInternal(ExpandDepthTreeVisitor(depth), rootNode, !fullRefresh)
+    }
 
     companion object {
         @get:Synchronized
@@ -189,8 +227,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         const val ROOT_NODE_ID = 0
     }
 
-
-    private suspend fun visitInternal(visitor: TreeVisitor<T>,targetNode: TreeNode<T>,fastVisit: Boolean) {
+    private suspend fun visitInternal(
+        visitor: TreeVisitor<T>,
+        targetNode: TreeNode<T>,
+        fastVisit: Boolean
+    ) {
 
         val nodeQueue = ArrayDeque<TreeNode<T>>()
 
@@ -225,11 +266,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     }
 
     override suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean) {
-       visitInternal(visitor,rootNode,fastVisit)
+        visitInternal(visitor, rootNode, fastVisit)
     }
 
     override suspend fun visit(visitor: TreeVisitor<T>, rootNode: TreeNode<T>, fastVisit: Boolean) {
-        visitInternal(visitor,rootNode,fastVisit)
+        visitInternal(visitor, rootNode, fastVisit)
     }
 
 }
@@ -287,75 +328,4 @@ interface TreeIdGenerator {
      * Generate id
      */
     fun generateId(): Int
-}
-
-/**
- * Tree visitor.
- *
- * The tree structure receive the object and then start accessing the object from
- * the root node on down (always depth first access)
- *
- * @param T The type of data stored in the tree to be visited
- *
- * @see [TreeVisitable]
- */
-interface TreeVisitor<T : Any> {
-    /**
-     * Visit a child node.
-     *
-     * The tree structure call this method to notify the object that the child node was visited.
-     *
-     * @return Does it continue to access the child nodes under this node
-     */
-    fun visitChildNode(node: TreeNode<T>): Boolean
-
-
-    /**
-     * Visit a leaf node.
-     *
-     * The tree structure call this method to notify the object that the leaf node was visited.
-     */
-    fun visitLeafNode(node: TreeNode<T>)
-}
-
-/**
- * TreeVisitable.
- *
- * Each tree structure needs to implement this interface to enable access to the tree.
- *
- * @see [TreeVisitor]
- */
-interface TreeVisitable<T : Any> {
-    /**
-     * Visit the tree.
-     * The tree structure implement this to enable access to the tree.
-     *
-     * This method is a suspend function as it needs to fetch node data from the node generator.
-     *
-     * It can be called to visit a tree.
-     *
-     * @param [visitor] Tree visitor
-     * @param [fastVisit] Whether to have quick access.
-     *
-     * If the value is true, then the node data will be fetched from the cache instead of
-     * calling the node generator to fetch the node data.
-     */
-    suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean = false)
-
-    /**
-     * Visit the tree.
-     * The tree structure implement this to enable access to the tree.
-     *
-     * This method is a suspend function as it needs to fetch node data from the node generator.
-     *
-     * It can be called to visit a tree.
-     *
-     * @param [visitor] Tree visitor
-     * @param [rootNode] The node that needs to be visited will be visited from that node on down
-     * @param [fastVisit] Whether to have quick access.
-     *
-     * If the value is true, then the node data will be fetched from the cache instead of
-     * calling the node generator to fetch the node data.
-     */
-    suspend fun visit(visitor: TreeVisitor<T>,rootNode: TreeNode<T>,fastVisit: Boolean = false)
 }
