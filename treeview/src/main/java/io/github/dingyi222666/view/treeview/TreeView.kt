@@ -499,6 +499,19 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
      */
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
+    override fun areContentsTheSame(
+        oldItem: TreeNode<T>,
+        newItem: TreeNode<T>
+    ): Boolean {
+        return oldItem == newItem && oldItem.data == newItem.data
+    }
+
+    override fun areItemsTheSame(
+        oldItem: TreeNode<T>,
+        newItem: TreeNode<T>
+    ): Boolean {
+        return oldItem.id == newItem.id
+    }
 
 }
 

@@ -83,20 +83,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        override fun areContentsTheSame(
-            oldItem: TreeNode<DataSource<String>>,
-            newItem: TreeNode<DataSource<String>>
-        ): Boolean {
-            return oldItem == newItem && oldItem.data?.name == newItem.data?.name
-        }
-
-        override fun areItemsTheSame(
-            oldItem: TreeNode<DataSource<String>>,
-            newItem: TreeNode<DataSource<String>>
-        ): Boolean {
-            return oldItem.id == newItem.id
-        }
-
         override fun getItemViewType(node: TreeNode<DataSource<String>>): Int {
             if (node.isChild) {
                 return 1
