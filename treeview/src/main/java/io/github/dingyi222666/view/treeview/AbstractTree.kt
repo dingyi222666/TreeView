@@ -73,7 +73,7 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      *
      * @see [TreeNodeGenerator]
      */
-    suspend fun getChildNodes(currentNode: TreeNode<T>): Set<TreeNode<T>>
+    suspend fun getChildNodes(currentNode: TreeNode<T>): List<TreeNode<T>>
 
     /**
      * Get the child list of the current node pointed to by the id.
@@ -86,14 +86,44 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      *
      * @see [TreeNodeGenerator]
      */
-    suspend fun getChildNodes(currentNodeId: Int): Set<TreeNode<T>>
+    suspend fun getChildNodes(currentNodeId: Int): List<TreeNode<T>>
 
-    fun getChildNodesForCache(currentNode: TreeNode<T>): Set<TreeNode<T>>
+    /**
+     * Get the child node data of the node from the cache.
+     *
+     * Different from [getChildNodes], this method does not call the node generator, it just fetch the child nodes from the cache
+     *
+     * @param currentNode current node
+     * @return List of child nodes
+     */
+    fun getChildNodesForCache(currentNode: TreeNode<T>): List<TreeNode<T>>
 
-    fun getChildNodesForCache(currentNodeId: Int): Set<TreeNode<T>>
+    /**
+     * Get the child node data of the node from the cache.
+     *
+     * Different from [getChildNodes], this method does not call the node generator, it just fetch the child nodes from the cache
+     *
+     * @param currentNodeId Need to get the id of a node in the child node list
+     * @return List of child nodes
+     */
+    fun getChildNodesForCache(currentNodeId: Int): List<TreeNode<T>>
 
+    /**
+     * Get the parent node of the given node.
+     *
+     * If the given node is the root node, then return `null`
+     *
+     * @param currentNode Need to get the node of the parent node
+     */
     fun getParentNode(currentNode: TreeNode<T>): TreeNode<T>?
 
+    /**
+     * Get the parent node of the given node.
+     *
+     * If the given node is the root node, then return `null`
+     *
+     * @param currentNodeId Need to get the node id of the parent node
+     */
     fun getParentNode(currentNodeId: Int): TreeNode<T>?
 
     /**

@@ -144,7 +144,7 @@ abstract class AbstractMutableMultimap<K : Any, V, C : MutableCollection<V>>(
     }
 
     override fun put(key: K, values: C): Boolean {
-        if (!map.containsKey(key)) map.put(key, empty())
+        if (!map.containsKey(key)) map[key] = empty()
         val add = map[key]!!.addAll(values)
         if (add) size += values.size
         return add

@@ -61,7 +61,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         addAllChild(node, list)
     }
 
-    private fun getChildNodeForCache(nodeId: Int): Set<Int> {
+    private fun getChildNodesForCacheInternal(nodeId: Int): Set<Int> {
         return allNodeAndChild[nodeId] ?: emptySet()
     }
 
@@ -75,7 +75,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             putNodeAndBindParentNode(it, parentNode.id)
         }
 
-        if (getChildNodeForCache(parentNode.id).isEmpty()) {
+        if (getChildNodesForCacheInternal(parentNode.id).isEmpty()) {
             parentNode.hasChild = false
         }
     }
@@ -86,7 +86,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         removeAllChildNode(currentNode.id)
     }
 
-    override fun createRootNode(): TreeNode<*> {
+    override fun createRootNode(): TreeNode<T> {
         val rootNode = createRootNodeUseGenerator() ?: TreeNode<T>(
             data = null, depth = 0, name = "Root", id = 0
         )
@@ -96,13 +96,19 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return rootNode
     }
 
-    override suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int> {
+    private suspend fun getChildNodesInternal(currentNodeId: Int): Set<Int> {
+        refresh(getNode(currentNodeId))
+        return getChildNodesForCacheInternal(currentNodeId)
+    }
+
+
+    override suspend fun getChildNodes(currentNode: TreeNode<T>): List<TreeNode<T>> {
         return getChildNodes(currentNode.id)
     }
 
-    override suspend fun getChildNodes(currentNodeId: Int): Set<Int> {
+    override suspend fun getChildNodes(currentNodeId: Int): List<TreeNode<T>> {
         refresh(getNode(currentNodeId))
-        return getChildNodeForCache(currentNodeId)
+        return getNodesInternal(getChildNodesForCacheInternal(currentNodeId))
     }
 
     override fun getNode(id: Int): TreeNode<T> {
@@ -116,12 +122,36 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             }
         }
 
+    override fun getChildNodesForCache(currentNode: TreeNode<T>): List<TreeNode<T>> {
+        return getChildNodesForCache(currentNode.id)
+    }
+
+    override fun getChildNodesForCache(currentNodeId: Int): List<TreeNode<T>> {
+        val childNodes = getChildNodesForCacheInternal(currentNodeId)
+        return getNodes(childNodes)
+    }
+
+    private fun getParentNodeInternal(currentNodeId: Int): Int? {
+        return allNodeAndChild.entries.find { it.value == currentNodeId }?.key
+    }
+
+    override fun getParentNode(currentNode: TreeNode<T>): TreeNode<T>? {
+        return getParentNode(currentNode.id)
+    }
+
+    override fun getParentNode(currentNodeId: Int): TreeNode<T>? {
+        if (currentNodeId == rootNode.id) {
+            return null
+        }
+        return getParentNodeInternal(currentNodeId)?.let(::getNode)
+    }
+
     override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
         getNodesInternal(nodeIdList)
 
 
     private suspend fun refreshInternal(parentNode: TreeNode<T>): Set<TreeNode<T>> {
-        val childNodeCache = getChildNodeForCache(parentNode.id)
+        val childNodeCache = getChildNodesForCacheInternal(parentNode.id)
 
         val targetChildNodeList = mutableSetOf<TreeNode<T>>()
         val childNodeData = generator.fetchNodeChildData(parentNode)
@@ -250,8 +280,8 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             }
 
             val children = if (fastVisit)
-                getChildNodeForCache(currentNode.id)
-            else getChildNodes(currentNode.id)
+                getChildNodesForCacheInternal(currentNode.id)
+            else getChildNodesInternal(currentNode.id)
 
             if (children.isEmpty()) {
                 continue
