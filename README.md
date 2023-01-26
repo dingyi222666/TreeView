@@ -1,6 +1,9 @@
 ## TreeView
-
 An TreeView implement in Android with RecyclerView written in kotlin.
+  
+[![CI Build Stauts](https://github.com/dingyi222666/TreeView/actions/workflows/android.yml/badge.svg)](https://github.com/dingyi222666/TreeView/tree/main/.github/workflows/android.yml)
+![maven-central](https://img.shields.io/maven-central/v/io.github.dingyi222666/treeview.svg)
+[![GitHub license](https://img.shields.io/github/license/dingyi222666/TreeView)](https://github.com/dingyi222666/TreeView/blob/main/LICENSE) 
 
 ## Features
 
