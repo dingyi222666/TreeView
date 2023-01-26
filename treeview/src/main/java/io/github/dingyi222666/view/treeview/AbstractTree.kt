@@ -38,7 +38,7 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      * @see [createRootNodeUseGenerator]
      * @see [TreeNodeGenerator]
      */
-    fun createRootNode(): TreeNode<*>
+    fun createRootNode(): TreeNode<T>
 
     /**
      * Use [TreeNodeGenerator] to create the root node.
@@ -69,11 +69,11 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      * you may need to do further operations to get the list of child nodes
      *
      * @param currentNode current node
-     * @return List of id of child nodes
+     * @return List of child nodes
      *
      * @see [TreeNodeGenerator]
      */
-    suspend fun getChildNodes(currentNode: TreeNode<*>): Set<Int>
+    suspend fun getChildNodes(currentNode: TreeNode<T>): Set<TreeNode<T>>
 
     /**
      * Get the child list of the current node pointed to by the id.
@@ -82,11 +82,19 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      * you may need to do further operations to get the list of child nodes
      *
      * @param currentNodeId Need to get the id of a node in the child node list
-     * @return List of id of child nodes
+     * @return List of child nodes
      *
      * @see [TreeNodeGenerator]
      */
-    suspend fun getChildNodes(currentNodeId: Int): Set<Int>
+    suspend fun getChildNodes(currentNodeId: Int): Set<TreeNode<T>>
+
+    fun getChildNodesForCache(currentNode: TreeNode<T>): Set<TreeNode<T>>
+
+    fun getChildNodesForCache(currentNodeId: Int): Set<TreeNode<T>>
+
+    fun getParentNode(currentNode: TreeNode<T>): TreeNode<T>?
+
+    fun getParentNode(currentNodeId: Int): TreeNode<T>?
 
     /**
      * Refresh the current node.
