@@ -110,6 +110,23 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      */
     suspend fun refreshWithChild(node: TreeNode<T>, withExpandable: Boolean = true): TreeNode<T>
 
+    suspend fun toggleNode(node: TreeNode<T>, fullRefresh: Boolean = false)
+
+    suspend fun expandAll(fullRefresh: Boolean = false)
+
+    suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = false)
+
+    suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = false)
+
+    suspend fun collapseAll(fullRefresh: Boolean = false)
+
+    suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = false)
+
+    suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = false)
+
+    suspend fun collapseFrom(depth: Int, fullRefresh: Boolean = false)
+
+    suspend fun expandUntil(depth: Int,fullRefresh: Boolean = false)
 
     /**
      * Get the list of node from the given list of id

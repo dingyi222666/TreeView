@@ -189,12 +189,12 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         const val ROOT_NODE_ID = 0
     }
 
-    override suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean) {
-        val rootNode = rootNode
+
+    private suspend fun visitInternal(visitor: TreeVisitor<T>,targetNode: TreeNode<T>,fastVisit: Boolean) {
 
         val nodeQueue = ArrayDeque<TreeNode<T>>()
 
-        nodeQueue.add(rootNode)
+        nodeQueue.add(targetNode)
 
         while (nodeQueue.isNotEmpty()) {
             val currentNode = nodeQueue.removeFirst()
@@ -222,6 +222,14 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             }
 
         }
+    }
+
+    override suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean) {
+       visitInternal(visitor,rootNode,fastVisit)
+    }
+
+    override suspend fun visit(visitor: TreeVisitor<T>, rootNode: TreeNode<T>, fastVisit: Boolean) {
+        visitInternal(visitor,rootNode,fastVisit)
     }
 
 }
@@ -333,4 +341,21 @@ interface TreeVisitable<T : Any> {
      * calling the node generator to fetch the node data.
      */
     suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean = false)
+
+    /**
+     * Visit the tree.
+     * The tree structure implement this to enable access to the tree.
+     *
+     * This method is a suspend function as it needs to fetch node data from the node generator.
+     *
+     * It can be called to visit a tree.
+     *
+     * @param [visitor] Tree visitor
+     * @param [rootNode] The node that needs to be visited will be visited from that node on down
+     * @param [fastVisit] Whether to have quick access.
+     *
+     * If the value is true, then the node data will be fetched from the cache instead of
+     * calling the node generator to fetch the node data.
+     */
+    suspend fun visit(visitor: TreeVisitor<T>,rootNode: TreeNode<T>,fastVisit: Boolean = false)
 }
