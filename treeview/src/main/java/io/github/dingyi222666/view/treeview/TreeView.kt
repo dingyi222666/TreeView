@@ -352,7 +352,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             var maxWidth = 0
             for (i in 0 until childCount) {
                 maxWidth = maxWidth.coerceAtLeast(
-                    (getChildAt(i).getTag(R.id.tag_measured_width) as Int?) ?: 0
+                    getChildAt(i).getTag(R.id.tag_measured_width) as Int? ?: 0
                 )
             }
             maxChildWidth = maxWidth.toFloat()
@@ -499,6 +499,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
      */
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
+    @SuppressLint("DiffUtilEquals")
     override fun areContentsTheSame(
         oldItem: TreeNode<T>,
         newItem: TreeNode<T>

@@ -402,8 +402,8 @@ abstract class AbstractMutableMultimap<K : Any, V, C : MutableCollection<V>>(
         override fun equals(other: Any?): Boolean {
             if (other === this) return true
             if (other !is Trio<*, *, *>) return false
-            return other.key == key && (other.value?.equals(value)
-                ?: (value == null && other.value == null))
+            return other.key == key && other.value?.equals(value)
+                ?: (value == null && other.value == null)
         }
 
         override fun hashCode(): Int = ((3 + key.hashCode()) * 5 + (value?.hashCode() ?: 0)) * 7

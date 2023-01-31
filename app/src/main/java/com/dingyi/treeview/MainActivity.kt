@@ -22,6 +22,7 @@ import io.github.dingyi222666.view.treeview.TreeNodeEventListener
 import io.github.dingyi222666.view.treeview.TreeView
 import io.github.dingyi222666.view.treeview.TreeViewBinder
 import io.github.dingyi222666.view.treeview.buildTree
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -51,8 +52,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-
-
+    
     private fun createTree(): Tree<DataSource<String>> {
         val dataCreator: CreateDataScope<String> = { _, _ -> UUID.randomUUID().toString() }
         return buildTree(dataCreator) {

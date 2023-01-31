@@ -4,28 +4,70 @@ import android.util.SparseArray
 import androidx.core.util.size
 import androidx.core.util.valueIterator
 
-
+/**
+ * Wrapper interface for data
+ *
+ * declares some fields, which are generic.
+ */
 interface DataSource<T : Any> {
+    /**
+     * The name of the data.
+     *
+     * This is displayed by default as the title of the [TreeView] item (you need to set it yourself)
+     */
     val name: String
+
+    /**
+     * The data
+     */
     val data: T?
+
+    /**
+     *  position relative to parent data, can be used for indexing or deletion
+     */
     var index: Int
+
+    /**
+     * same as [TreeNode.requireData]
+     */
     fun requireData(): T {
         return checkNotNull(data)
     }
 
 }
 
+/**
+ * A support interface for data containing child nodes.
+ */
 interface MultipleDataSourceSupport<T : Any> {
+    /**
+     * Add a child data
+     */
     fun add(child: DataSource<T>)
 
+    /**
+     * Delete a child data
+     */
     fun remove(child: DataSource<T>)
 
+    /**
+     * Get the index of the child data
+     */
     fun indexOf(child: DataSource<T>): Int
 
+    /**
+     * Get from index of child data for child data
+     */
     fun get(index: Int): DataSource<T>
 
+    /**
+     * List all child data
+     */
     fun list(): List<DataSource<T>>
 
+    /**
+     * Get the size of child data
+     */
     fun size(): Int
 }
 
@@ -65,6 +107,9 @@ private class MultipleDataSourceSupportHandler<T : Any> : MultipleDataSourceSupp
 
 }
 
+/**
+ * Single data source
+ */
 open class SingleDataSource<T : Any> internal constructor(
     override val name: String,
     override val data: T?
@@ -93,7 +138,9 @@ open class SingleDataSource<T : Any> internal constructor(
 
 }
 
-
+/**
+ * Data sources with child data
+ */
 open class MultipleDataSource<T : Any> internal constructor(
     override val name: String,
     override val data: T?,
@@ -121,7 +168,17 @@ open class MultipleDataSource<T : Any> internal constructor(
 
 }
 
+/**
+ * The default node generator for DataSource.
+ *
+ * This will simplify the code for you to display the data.
+ */
 class DataSourceNodeGenerator<T : Any>(
+    /**
+     * The root node of the data to be displayed.
+     *
+     * The node generator start iterating from this node and generate the nodes
+     */
     private val rootData: MultipleDataSource<T>
 ) : TreeNodeGenerator<DataSource<T>> {
     override suspend fun fetchNodeChildData(targetNode: TreeNode<DataSource<T>>): Set<DataSource<T>> {
@@ -161,7 +218,11 @@ class DataSourceNodeGenerator<T : Any>(
 @DslMarker
 annotation class DataSourceMarker
 
+/**
+ * Used to generate data associated with [DataSource]
+ */
 typealias CreateDataScope<T> = (String, DataSource<T>) -> T
+
 
 @DataSourceMarker
 class DataSourceScope<T : Any>(
@@ -170,6 +231,16 @@ class DataSourceScope<T : Any>(
     internal var createDataScope: CreateDataScope<T> = { _, _ -> error("Not supproted") }
 }
 
+/**
+ * Build a node with child nodes
+ *
+ * @param name node name
+ * @param data The data of the node.
+ *
+ * If null, try to get data from [CreateDataScope].
+ *
+ * @param scope Build scope of child nodes
+ */
 fun <T : Any> DataSourceScope<T>.Branch(
     name: String,
     data: T? = null,
@@ -184,7 +255,13 @@ fun <T : Any> DataSourceScope<T>.Branch(
     scope.invoke(childScope)
 }
 
-
+/**
+ * Build a leaf node
+ *
+ * @param name node name
+ * @param data The data of the node.
+ *
+ */
 fun <T : Any> DataSourceScope<T>.Leaf(
     name: String,
     data: T? = null
@@ -196,8 +273,17 @@ fun <T : Any> DataSourceScope<T>.Leaf(
 }
 
 
+/**
+ * Build a tree quickly based on kotlin dsl.
+ */
 fun <T : Any> buildTree(
+    /**
+     * Data Creator, can be null
+     */
     dataCreator: CreateDataScope<T>? = null,
+    /**
+     *  Build scope of child nodes
+     */
     scope: DataSourceScope<T>.() -> Unit
 ): Tree<DataSource<T>> {
 
