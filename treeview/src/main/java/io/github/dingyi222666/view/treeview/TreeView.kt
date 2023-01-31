@@ -87,7 +87,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             horizontalOffset = 0f
         }
         coroutineScope.launch {
-            _adapter.refresh()
+            refresh()
         }
     }
 
@@ -161,6 +161,24 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             submitList(currentData)
         }
 
+        override fun onCurrentListChanged(
+            previousList: MutableList<TreeNode<T>>,
+            currentList: MutableList<TreeNode<T>>
+        ) {
+            super.onCurrentListChanged(previousList, currentList)
+
+            for (changeNode in binder.changeNodes) {
+                val changePosition = currentList.indexOf(changeNode)
+                getViewHolder(changePosition)?.let { holder ->
+                    binder.bindView(
+                        holder, changeNode, this@TreeView
+                    )
+                }
+            }
+
+            binder.changeNodes.clear()
+        }
+
     }
 
     /**
@@ -200,7 +218,17 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         val list = tree.toSortedList(fastVisit = fastRefreshOnLocal)
 
         _adapter.submitList(list)
+    }
 
+    private fun getViewHolder(index: Int): ViewHolder? {
+        if (adapter == null || adapter?.itemCount!! < 1) {
+            return null
+        }
+        val count = _adapter.itemCount
+        if (index !in 0 until count) {
+            return null
+        }
+        return findViewHolderForAdapterPosition(index) as ViewHolder?
     }
 
 
@@ -457,6 +485,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
     TreeNodeEventListener<T> {
 
     private val nodeCacheHashCodes = mutableMapOf<Int, Int>()
+    internal val changeNodes = mutableListOf<TreeNode<T>>()
 
     /**
      * like [RecyclerView.Adapter.onCreateViewHolder].
@@ -502,7 +531,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
     @SuppressLint("DiffUtilEquals")
-    override fun areContentsTheSame(
+    final override fun areContentsTheSame(
         oldItem: TreeNode<T>,
         newItem: TreeNode<T>
     ): Boolean {
@@ -512,18 +541,19 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
         }
         val oldHash = nodeCacheHashCodes[newItem.id] ?: 0
         val newHash = newItem.hashCode()
-        return (oldHash == newHash).also {
+        if (oldHash != newHash) {
             nodeCacheHashCodes[newItem.id] = newHash
+            changeNodes.add(newItem)
         }
+        return true
     }
 
-    override fun areItemsTheSame(
+    final override fun areItemsTheSame(
         oldItem: TreeNode<T>,
         newItem: TreeNode<T>
     ): Boolean {
         return oldItem.id == newItem.id
     }
-
 }
 
 class EmptyTreeNodeEventListener : TreeNodeEventListener<Any>

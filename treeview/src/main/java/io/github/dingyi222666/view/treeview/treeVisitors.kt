@@ -103,8 +103,8 @@ class ExpandDepthTreeVisitor<T : Any>(
     private val depth: Int
 ) : TreeVisitor<T> {
     override fun visitChildNode(node: TreeNode<T>): Boolean {
-        node.expand = node.depth <= depth
-        return node.depth <= depth
+        node.expand = true
+        return node.depth < depth
     }
 }
 

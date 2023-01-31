@@ -26,142 +26,35 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 - Introduction Dependency
 
 ```groovy
-implementation("io.github.dingyi222666:treeview:1.0.4")
+implementation("io.github.dingyi222666:treeview:1.1.0")
 ```
 
-- First, we need a way to get the data to display, in this case we fake some unreal data
+- First, we need a way to get the data to display, Now use `DataSource` to generate data and tree quickly
 
 ```kotlin
+private fun createTree(): Tree<DataSource<String>> {
+    val dataCreator: CreateDataScope<String> = { _, _ -> UUID.randomUUID().toString() }
+    return buildTree(dataCreator) {
+        Branch("app") {
+            Branch("src") {
+                Branch("main") {
+                    Branch("java") {
+                        Branch("com.dingyi.treeview") {
+                            Leaf("MainActivity.kt")
+                        }
+                    }
+                    Branch("res") {
+                        Branch("drawable") {
 
-class VirtualFile(
-    val name: String,
-    val isDir: Boolean
-) {
-
-    private lateinit var parent: VirtualFile
-
-    private val child = mutableListOf<VirtualFile>()
-
-    fun addChild(file: VirtualFile): VirtualFile {
-        child.add(file)
-        file.parent = this
-        return this
-    }
-
-    fun addChild(vararg virtualFile: VirtualFile): VirtualFile {
-        virtualFile.forEach { addChild(it) }
-        return this
-    }
-
-    fun getChild(): List<VirtualFile> = child
-
-}
-
-private fun repeatCreateVirtualFile(parent: VirtualFile, size: Int): VirtualFile {
-
-    fun create(parentFile: VirtualFile): Pair<VirtualFile, VirtualFile> {
-        val inside = VirtualFile("Test5", true)
-        return VirtualFile("Test", true)
-            .addChild(
-                VirtualFile("Test2", false),
-                VirtualFile("Test3", false),
-                VirtualFile("Test4", false),
-                inside
-            ).apply {
-                parentFile.addChild(this)
-            } to inside
-    }
-
-    var (currentRootVirtualFile, currentInsideVirtualFile) = create(parent)
-
-
-    IntRange(1, size).forEach { _ ->
-        currentInsideVirtualFile = create(currentInsideVirtualFile).second
-    }
-
-    return currentRootVirtualFile
-}
-
-fun createVirtualFile(): VirtualFile {
-    val root = VirtualFile("app", true)
-    root.addChild(
-        VirtualFile("src", true)
-            .addChild(
-                VirtualFile("main", true)
-                    .addChild(
-                        VirtualFile("java", true)
-                            .addChild(
-                                VirtualFile("com.dingyi.treeview", true)
-                                    .addChild(VirtualFile("MainActivity.kt", false))
-                            )
-                    ),
-                VirtualFile("res", true)
-                    .addChild(
-                        VirtualFile("layout", true)
-                            .addChild(
-                                VirtualFile("activity_main", false)
-                            )
-                    ),
-                // Test for horizontal scroll
-                /* VirtualFile("test", true).apply {
-                     repeatCreateVirtualFile(this, 20)
-                 }*/
-            ),
-    )
-    return root
-}
-
-```
-
-- Create a new node generator for the transformation of your data to the nodes
-
-```kotlin
-inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
-
-    private val root = createVirtualFile()
-    override suspend fun refreshNode(
-        targetNode: TreeNode<VirtualFile>,
-        oldChildNodeSet: Set<Int>,
-        tree: AbstractTree<VirtualFile>,
-    ): Set<TreeNode<VirtualFile>> = withContext(Dispatchers.IO) {
-
-        // delay(100)
-
-        val oldNodes = tree.getNodes(oldChildNodeSet)
-
-        val child = checkNotNull(targetNode.data?.getChild()).toMutableSet()
-
-        val result = mutableSetOf<TreeNode<VirtualFile>>()
-
-        oldNodes.forEach { node ->
-            val virtualFile = child.find { it.name == node.data?.name }
-            if (virtualFile != null) {
-                result.add(node)
+                        }
+                        Branch("xml") {}
+                    }
+                    Leaf("AndroidManifest.xml")
+                }
             }
-            child.remove(virtualFile)
         }
-
-        if (child.isEmpty()) {
-            return@withContext result
-        }
-
-        child.forEach {
-            result.add(
-                TreeNode(
-                    it, targetNode.depth + 1, it.name,
-                    tree.generateId(), it.isDir && it.getChild().isNotEmpty(), it.isDir, false
-                )
-            )
-        }
-
-        result
-    }
-
-    override fun createRootNode(): TreeNode<VirtualFile> {
-        return TreeNode(root, 0, root.name, Tree.ROOT_NODE_ID, true, true)
     }
 }
-
 ```
 
 - Create a node binder to bind the node to the layout, and in most case also implement node click
@@ -171,93 +64,78 @@ inner class NodeGenerator : TreeNodeGenerator<VirtualFile> {
   width of this space is the width of the indent.
 
 ```kotlin
-inner class ViewBinder : TreeViewBinder<VirtualFile>(), TreeNodeEventListener<VirtualFile> {
+inner class ViewBinder : TreeViewBinder<DataSource<String>>(),
+  TreeNodeEventListener<DataSource<String>> {
 
-    override fun createView(parent: ViewGroup, viewType: Int): View {
-        return if (viewType == 1) {
-            ItemDirBinding.inflate(layoutInflater, parent, false).root
-        } else {
-            ItemFileBinding.inflate(layoutInflater, parent, false).root
-        }
+  override fun createView(parent: ViewGroup, viewType: Int): View {
+    return if (viewType == 1) {
+      ItemDirBinding.inflate(layoutInflater, parent, false).root
+    } else {
+      ItemFileBinding.inflate(layoutInflater, parent, false).root
+    }
+  }
+
+  override fun getItemViewType(node: TreeNode<DataSource<String>>): Int {
+    if (node.isChild) {
+      return 1
+    }
+    return 0
+  }
+
+  override fun bindView(
+    holder: TreeView.ViewHolder,
+    node: TreeNode<DataSource<String>>,
+    listener: TreeNodeEventListener<DataSource<String>>
+  ) {
+    if (node.isChild) {
+      applyDir(holder, node)
+    } else {
+      applyFile(holder, node)
     }
 
-    override fun areContentsTheSame(
-        oldItem: TreeNode<VirtualFile>,
-        newItem: TreeNode<VirtualFile>
-    ): Boolean {
-        return oldItem == newItem && oldItem.data?.name == newItem.data?.name
+    val itemView = holder.itemView.findViewById<Space>(R.id.space)
+
+    itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+      width = node.depth * 22.dp
     }
 
-    override fun areItemsTheSame(
-        oldItem: TreeNode<VirtualFile>,
-        newItem: TreeNode<VirtualFile>
-    ): Boolean {
-        return oldItem.id == newItem.id
+  }
+
+  private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
+    val binding = ItemFileBinding.bind(holder.itemView)
+    binding.tvName.text = node.name.toString()
+  }
+
+  private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
+    val binding = ItemDirBinding.bind(holder.itemView)
+    binding.tvName.text = node.name.toString()
+
+    binding
+      .ivArrow
+      .animate()
+      .rotation(if (node.expand) 90f else 0f)
+      .setDuration(200)
+      .start()
+  }
+
+
+  override fun onClick(node: TreeNode<DataSource<String>>, holder: TreeView.ViewHolder) {
+    if (node.isChild) {
+      applyDir(holder, node)
+    } else {
+      Toast.makeText(this@MainActivity, "Clicked ${node.name}", Toast.LENGTH_LONG).show()
     }
+  }
 
-    override fun getItemViewType(node: TreeNode<VirtualFile>): Int {
-        if (node.isChild == true) {
-            return 1
-        }
-        return 0
-    }
-
-    override fun bindView(
-        holder: TreeView.ViewHolder,
-        node: TreeNode<VirtualFile>,
-        listener: TreeNodeEventListener<VirtualFile>
-    ) {
-        if (node.isChild) {
-            applyDir(holder, node)
-        } else {
-            applyFile(holder, node)
-        }
-
-        val itemView = if (getItemViewType(node) == 1)
-            ItemDirBinding.bind(holder.itemView).space
-        else ItemFileBinding.bind(holder.itemView).space
-
-        itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = node.depth * 10.dp
-        }
-    }
-
-    private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-        val binding = ItemFileBinding.bind(holder.itemView)
-        binding.tvName.text = node.name.toString()
-    }
-
-    private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<VirtualFile>) {
-        val binding = ItemDirBinding.bind(holder.itemView)
-        binding.tvName.text = node.name.toString()
-
-        binding
-            .ivArrow
-            .animate()
-            .rotation(if (node.expand) 90f else 0f)
-            .setDuration(0)
-            .start()
-    }
-
-
-    override fun onClick(node: TreeNode<VirtualFile>, holder: TreeView.ViewHolder) {
-        if (node.isChild) {
-            applyDir(holder, node)
-        } 
-      
-        // Do something when clicked node
-    }
-
-    override fun onToggle(
-        node: TreeNode<VirtualFile>,
-        isExpand: Boolean,
-        holder: TreeView.ViewHolder
-    ) {
-        if (isExpand) {
-            applyDir(holder, node)
-        }
-    }
+  override fun onToggle(
+    node: TreeNode<DataSource<String>>,
+    isExpand: Boolean,
+    holder: TreeView.ViewHolder
+  ) {
+    applyDir(holder, node)
+  }
 }
+
 ```
 
 - If you want to implement horizontal scrolling, then you may need to do like this
@@ -270,12 +148,9 @@ treeview.supportHorizontalScroll = true
   TreeView, then refresh the data
 
 ```kotlin
-val tree = Tree.createTree<VirtualFile>()
+ val tree = createTree()
 
-tree.generator = NodeGenerator()
-tree.initTree()
-
-(binding.treeview as TreeView<VirtualFile>).apply {
+(binding.treeview as TreeView<DataSource<String>>).apply {
     bindCoroutineScope(lifecycleScope)
     this.tree = tree
     binder = ViewBinder()
