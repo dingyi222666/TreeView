@@ -77,7 +77,11 @@ interface TreeVisitable<T : Any> {
 
 class CollapseAllTreeVisitor<T : Any> : TreeVisitor<T> {
     override fun visitChildNode(node: TreeNode<T>): Boolean {
+        if (node.depth <= -1) {
+            return true
+        }
         node.expand = false
+
         return true
     }
 }
@@ -86,10 +90,12 @@ class CollapseDepthTreeVisitor<T : Any>(
     private val depth: Int
 ) : TreeVisitor<T> {
     override fun visitChildNode(node: TreeNode<T>): Boolean {
-        if (node.depth == depth) {
-            node.expand = false
+        if (node.depth <= -1) {
+            return true
         }
-        return node.depth < depth
+        val oldExpand = node.expand
+        node.expand = node.depth < depth
+        return if (node.depth <= depth) true else oldExpand
     }
 }
 
@@ -97,10 +103,8 @@ class ExpandDepthTreeVisitor<T : Any>(
     private val depth: Int
 ) : TreeVisitor<T> {
     override fun visitChildNode(node: TreeNode<T>): Boolean {
-        if (node.depth == depth) {
-            node.expand = true
-        }
-        return node.depth < depth
+        node.expand = node.depth <= depth
+        return node.depth <= depth
     }
 }
 

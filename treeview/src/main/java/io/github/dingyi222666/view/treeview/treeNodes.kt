@@ -85,8 +85,10 @@ open class TreeNode<T : Any>(
         result = 31 * result + id
         result = 31 * result + hasChild.hashCode()
         result = 31 * result + expand.hashCode()
+        result = 31 * result + hasChild.hashCode()
         return result
     }
+
 
     /**
      * Return [data] that is not null.
@@ -98,6 +100,10 @@ open class TreeNode<T : Any>(
      */
     fun requireData(): T {
         return checkNotNull(data)
+    }
+
+    override fun toString(): String {
+        return "TreeNode(data=$data, depth=$depth, name=$name, id=$id, hasChild=$hasChild, isChild=$isChild, expand=$expand)"
     }
 }
 

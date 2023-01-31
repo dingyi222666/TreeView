@@ -213,7 +213,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] Node that need to switch node state
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun toggleNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+    suspend fun toggleNode(node: TreeNode<T>, fullRefresh: Boolean = true) {
         if (!node.isChild) {
             return
         }
@@ -231,9 +231,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      *
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun expandAll(fullRefresh: Boolean = false) {
+    suspend fun expandAll(fullRefresh: Boolean = true) {
         tree.expandAll(fullRefresh)
-        refresh(true)
+        refresh(fullRefresh)
     }
 
     /**
@@ -244,9 +244,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] Node to be expanded
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
+    suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.expandAll(node, fullRefresh)
-        refresh(true,node)
+        refresh(fullRefresh,node)
     }
 
     /**
@@ -258,9 +258,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] Node to be expanded
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+    suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.expandNode(node, fullRefresh)
-        refresh(true,node)
+        refresh(fullRefresh,node)
     }
 
     /**
@@ -270,9 +270,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      *
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun collapseAll(fullRefresh: Boolean = false) {
+    suspend fun collapseAll(fullRefresh: Boolean = true) {
         tree.collapseAll(fullRefresh)
-        refresh(true)
+        refresh(fullRefresh)
     }
 
     /**
@@ -283,9 +283,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] Node to be collapsed
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
+    suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.collapseAll(node, fullRefresh)
-        refresh(true,node)
+        refresh(fullRefresh,node)
     }
 
     /**
@@ -297,9 +297,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] Node to be collapsed
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
+    suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.collapseNode(node, fullRefresh)
-        refresh(true,node)
+        refresh(fullRefresh,node)
     }
 
     /**
@@ -310,9 +310,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [depth] Given depth
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
      */
-    suspend fun collapseFrom(depth: Int, fullRefresh: Boolean = false) {
+    suspend fun collapseFrom(depth: Int, fullRefresh: Boolean = true) {
         tree.collapseFrom(depth, fullRefresh)
-        refresh(true)
+        refresh(fullRefresh)
     }
 
 
@@ -325,7 +325,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [fullRefresh] Whether to fetch nodes from the node generator when refreshed, if false, then nodes will be fetched from the cache
     .
      */
-    suspend fun expandUntil(depth: Int, fullRefresh: Boolean = false) {
+    suspend fun expandUntil(depth: Int, fullRefresh: Boolean = true) {
         tree.expandUntil(depth, fullRefresh)
         refresh(true)
     }

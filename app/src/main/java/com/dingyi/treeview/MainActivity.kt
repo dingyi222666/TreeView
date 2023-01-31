@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.collapse_all -> binding.treeview.collapseAll()
                 R.id.expand_all -> binding.treeview.expandAll()
                 R.id.expand_level -> binding.treeview.expandUntil(2)
-                R.id.collapse_all -> binding.treeview.collapseFrom(2)
+                R.id.collapse_level -> binding.treeview.collapseFrom(2)
             }
         }
         return true
@@ -166,9 +166,7 @@ class MainActivity : AppCompatActivity() {
             isExpand: Boolean,
             holder: TreeView.ViewHolder
         ) {
-            if (isExpand) {
-                applyDir(holder, node)
-            }
+            applyDir(holder, node)
         }
     }
 
