@@ -11,6 +11,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 2. Customise, ~~in the future~~ you can implement your own tree data structure.
 3. Fetching data asynchronously, rather than loading it all at once
 4. Horizontal scroll support. ~~(with bug)~~
+5. Built-in DSL
 
 ## Screenshot
 
@@ -18,7 +19,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 
 ## TODO
 - [ ] Select/UnSelect Node
-- [ ] Better TreeNodeGenerator API
+- [-] Better TreeNodeGenerator API
 - [ ] More API to Operate Node. e.g. Expand Node, Collapse Node.
 
 ## Usage
@@ -160,7 +161,6 @@ treeview.supportHorizontalScroll = true
 lifecycleScope.launch {
     binding.treeview.refresh()
 }
-
 
 ```
 
