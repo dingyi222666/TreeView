@@ -233,7 +233,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandAll(fullRefresh: Boolean = false) {
         tree.expandAll(fullRefresh)
-        refresh(fullRefresh)
+        refresh(true)
     }
 
     /**
@@ -246,7 +246,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
         tree.expandAll(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(true,node)
     }
 
     /**
@@ -260,7 +260,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
         tree.expandNode(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(true,node)
     }
 
     /**
@@ -272,7 +272,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseAll(fullRefresh: Boolean = false) {
         tree.collapseAll(fullRefresh)
-        refresh(fullRefresh)
+        refresh(true)
     }
 
     /**
@@ -285,7 +285,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = false) {
         tree.collapseAll(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(true,node)
     }
 
     /**
@@ -299,7 +299,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = false) {
         tree.collapseNode(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(true,node)
     }
 
     /**
@@ -312,7 +312,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseFrom(depth: Int, fullRefresh: Boolean = false) {
         tree.collapseFrom(depth, fullRefresh)
-        refresh(fullRefresh)
+        refresh(true)
     }
 
 
@@ -327,7 +327,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandUntil(depth: Int, fullRefresh: Boolean = false) {
         tree.expandUntil(depth, fullRefresh)
-        refresh(fullRefresh)
+        refresh(true)
     }
 
 

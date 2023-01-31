@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -19,9 +20,9 @@
         android:layout_marginLeft="26dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:drawableLeft="@drawable/baseline_insert_drive_file_24"
         android:drawablePadding="12dp"
         android:gravity="center_vertical"
         android:textSize="18sp"
-        tools:text="@string/app_name" />
+        tools:text="@string/app_name"
+        app:drawableLeftCompat="@drawable/baseline_insert_drive_file_24" />
 </LinearLayout>

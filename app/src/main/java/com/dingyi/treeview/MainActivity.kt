@@ -2,6 +2,8 @@ package com.dingyi.treeview
 
 import android.content.res.Resources
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Space
@@ -52,7 +54,26 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-    
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        super.onPrepareOptionsMenu(menu)
+        menuInflater.inflate(R.menu.main, menu)
+        return true
+    }
+
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        lifecycleScope.launch {
+            when (item.itemId) {
+                R.id.collapse_all -> binding.treeview.collapseAll()
+                R.id.expand_all -> binding.treeview.expandAll()
+                R.id.expand_level -> binding.treeview.expandUntil(2)
+                R.id.collapse_all -> binding.treeview.collapseFrom(2)
+            }
+        }
+        return true
+    }
+
     private fun createTree(): Tree<DataSource<String>> {
         val dataCreator: CreateDataScope<String> = { _, _ -> UUID.randomUUID().toString() }
         return buildTree(dataCreator) {
@@ -64,7 +85,12 @@ class MainActivity : AppCompatActivity() {
                                 Leaf("MainActivity.kt")
                             }
                         }
-                        Branch("res") {}
+                        Branch("res") {
+                            Branch("drawable") {
+
+                            }
+                            Branch("xml") {}
+                        }
                         Leaf("AndroidManifest.xml")
                     }
                 }
