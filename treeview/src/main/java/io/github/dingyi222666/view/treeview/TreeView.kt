@@ -193,7 +193,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         var fastRefreshOnLocal = fastRefresh
 
         if (node != null) {
-            tree.refreshWithChild(node,withExpandable = true)
+            tree.refreshWithChild(node, withExpandable = true)
             fastRefreshOnLocal = true
         }
 
@@ -246,7 +246,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandAll(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.expandAll(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(fullRefresh, node)
     }
 
     /**
@@ -260,7 +260,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun expandNode(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.expandNode(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(fullRefresh, node)
     }
 
     /**
@@ -285,7 +285,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseAll(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.collapseAll(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(fullRefresh, node)
     }
 
     /**
@@ -299,7 +299,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      */
     suspend fun collapseNode(node: TreeNode<T>, fullRefresh: Boolean = true) {
         tree.collapseNode(node, fullRefresh)
-        refresh(fullRefresh,node)
+        refresh(fullRefresh, node)
     }
 
     /**
@@ -430,7 +430,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         }
 
         coroutineScope.launch {
-            refresh(fastRefresh = true,node = node)
+            refresh(fastRefresh = true, node = node)
         }
 
     }
@@ -455,6 +455,8 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
  */
 abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
     TreeNodeEventListener<T> {
+
+    private val nodeCacheHashCodes = mutableMapOf<Int, Int>()
 
     /**
      * like [RecyclerView.Adapter.onCreateViewHolder].
@@ -504,7 +506,15 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
         oldItem: TreeNode<T>,
         newItem: TreeNode<T>
     ): Boolean {
-        return oldItem == newItem && oldItem.data == newItem.data
+        val isSame = oldItem.id == newItem.id && oldItem == newItem && oldItem.data == newItem.data
+        if (!isSame) {
+            return false
+        }
+        val oldHash = nodeCacheHashCodes[newItem.id] ?: 0
+        val newHash = newItem.hashCode()
+        return (oldHash == newHash).also {
+            nodeCacheHashCodes[newItem.id] = newHash
+        }
     }
 
     override fun areItemsTheSame(
