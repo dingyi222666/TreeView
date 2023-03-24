@@ -6,14 +6,17 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Checkable
 import android.widget.Space
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
+import com.google.android.material.checkbox.MaterialCheckBox
 import io.github.dingyi222666.view.treeview.Branch
 import io.github.dingyi222666.view.treeview.CreateDataScope
 import io.github.dingyi222666.view.treeview.DataSource
@@ -24,7 +27,6 @@ import io.github.dingyi222666.view.treeview.TreeNodeEventListener
 import io.github.dingyi222666.view.treeview.TreeView
 import io.github.dingyi222666.view.treeview.TreeViewBinder
 import io.github.dingyi222666.view.treeview.buildTree
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -46,7 +48,8 @@ class MainActivity : AppCompatActivity() {
             bindCoroutineScope(lifecycleScope)
             this.tree = tree
             binder = ViewBinder()
-            nodeEventListener = binder
+            nodeEventListener = binder as ViewBinder
+            selectionMode = TreeView.SelectionMode.NONE
         }
 
         lifecycleScope.launch {
@@ -133,11 +136,16 @@ class MainActivity : AppCompatActivity() {
                 width = node.depth * 22.dp
             }
 
+            (getCheckableView(node, holder) as MaterialCheckBox).apply {
+                isVisible = node.selected
+                isSelected = node.selected
+            }
         }
 
         private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
             val binding = ItemFileBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
+
         }
 
         private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
@@ -150,8 +158,26 @@ class MainActivity : AppCompatActivity() {
                 .rotation(if (node.expand) 90f else 0f)
                 .setDuration(200)
                 .start()
+
         }
 
+        override fun onNodeSelectChanged(
+            node: TreeNode<DataSource<String>>,
+            holder: TreeView.ViewHolder
+        ) {
+            // TODO....
+        }
+
+        override fun getCheckableView(
+            node: TreeNode<DataSource<String>>,
+            holder: TreeView.ViewHolder
+        ): Checkable {
+            return if (node.isChild) {
+                ItemDirBinding.bind(holder.itemView).checkbox
+            } else {
+                ItemFileBinding.bind(holder.itemView).checkbox
+            }
+        }
 
         override fun onClick(node: TreeNode<DataSource<String>>, holder: TreeView.ViewHolder) {
             if (node.isChild) {
@@ -172,7 +198,6 @@ class MainActivity : AppCompatActivity() {
 
 
 }
-
 
 inline val Int.dp: Int
     get() = (Resources.getSystem().displayMetrics.density * this + 0.5f).toInt()

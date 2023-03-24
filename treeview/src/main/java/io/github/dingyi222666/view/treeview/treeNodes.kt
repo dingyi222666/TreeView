@@ -63,6 +63,15 @@ open class TreeNode<T : Any>(
      */
     var expand: Boolean = true,
 ) {
+
+
+    /**
+     * Whether the node is selected or not.
+     * The [TreeView] use this to display the selected state of the node on the view.
+     */
+    var selected: Boolean = false
+        internal set
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -75,7 +84,7 @@ open class TreeNode<T : Any>(
         if (hasChild != other.hasChild) return false
         if (isChild != other.isChild) return false
         if (expand != other.expand) return false
-
+        if (selected != other.selected) return false
         return true
     }
 
@@ -86,6 +95,7 @@ open class TreeNode<T : Any>(
         result = 31 * result + hasChild.hashCode()
         result = 31 * result + expand.hashCode()
         result = 31 * result + hasChild.hashCode()
+        result = 31 * result + selected.hashCode()
         return result
     }
 
@@ -103,7 +113,7 @@ open class TreeNode<T : Any>(
     }
 
     override fun toString(): String {
-        return "TreeNode(data=$data, depth=$depth, name=$name, id=$id, hasChild=$hasChild, isChild=$isChild, expand=$expand)"
+        return "TreeNode(data=$data, depth=$depth, name=$name, id=$id, hasChild=$hasChild, isChild=$isChild, expand=$expand, selected=$selected)"
     }
 }
 

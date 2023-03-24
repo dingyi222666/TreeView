@@ -4,16 +4,21 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Checkable
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.properties.Delegates
 
@@ -71,6 +76,19 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         EmptyTreeNodeEventListener() as TreeNodeEventListener<T>
 
     /**
+     * TreeView Selection Mode.
+     *
+     * Set it to allow TreeView to select nodes.
+     *
+     */
+    var selectionMode by Delegates.observable(SelectionMode.NONE) { _, old, new ->
+        if (old == new) {
+            return@observable
+        }
+        defaultRefresh()
+    }
+
+    /**
      * Whether horizontal scrolling is supported.
      *
      * In most cases, you don't need to turn it on.
@@ -86,9 +104,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         if (!new) {
             horizontalOffset = 0f
         }
-        coroutineScope.launch {
-            refresh()
-        }
+        defaultRefresh()
     }
 
     private lateinit var _adapter: Adapter
@@ -115,29 +131,43 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             val rootView = this@TreeView
             val node = getItem(position)
 
-            holder.itemView.setOnClickListener {
-                rootView.onClick(node, holder)
+            holder.itemView.apply {
+                setOnClickListener {
+                    rootView.onClick(node, holder)
+                }
+
+                setOnLongClickListener {
+                    return@setOnLongClickListener rootView.onLongClick(node, holder)
+                }
+
+                isLongClickable = true
             }
 
-            holder.itemView.setOnLongClickListener {
-                return@setOnLongClickListener rootView.onLongClick(node, holder)
-            }
 
             binder.bindView(holder, node, rootView)
+
+            val checkableView = binder.getCheckableView(node, holder)
+
+            if (checkableView != null) {
+                checkableView.isChecked = node.selected
+            }
 
             if (supportHorizontalScroll) {
                 holder.itemView.apply {
                     // Get child's preferred size
-                    layoutParams =
-                        LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                    updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = LayoutParams.WRAP_CONTENT
+                        height = LayoutParams.WRAP_CONTENT
+                    }
                     measure(
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
                     )
                     // Apply a large width and measured height
-                    layoutParams.apply {
+                    updateLayoutParams<ViewGroup.LayoutParams> {
                         width = 1000000
                         height = holder.itemView.measuredHeight
+
                     }
                     // Save current measured width for later usage
                     setTag(
@@ -146,8 +176,10 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
                     )
                 }
             } else {
-                holder.itemView.layoutParams =
-                    LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                holder.itemView.updateLayoutParams<ViewGroup.LayoutParams> {
+                    width = LayoutParams.MATCH_PARENT
+                    height = LayoutParams.WRAP_CONTENT
+                }
             }
         }
 
@@ -170,9 +202,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             for (changeNode in binder.changeNodes) {
                 val changePosition = currentList.indexOf(changeNode)
                 getViewHolder(changePosition)?.let { holder ->
-                    binder.bindView(
-                        holder, changeNode, this@TreeView
-                    )
+                    onBindViewHolder(holder, changePosition)
                 }
             }
 
@@ -446,6 +476,35 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         canvas.restore()
     }
 
+
+    private fun checkCanSelect(node: TreeNode<T>): Boolean {
+        return when (selectionMode) {
+            SelectionMode.NONE -> false
+            SelectionMode.SINGLE -> {
+                val selectedNodes = tree.getSelectedNodes()
+                selectedNodes.isEmpty() || selectedNodes.find {
+                    it == node || (node.data == it.data && tree.getParentNode(node) ==
+                            tree.getParentNode(it))
+                } != null
+            }
+
+            SelectionMode.MULTIPLE,SelectionMode.MULTIPLE_WITH_CHILDREN -> true
+        }
+    }
+
+    private suspend fun trySelect(node: TreeNode<T>, holder: ViewHolder): Boolean {
+        if (!checkCanSelect(node)) {
+            return false
+        }
+
+        // node.selected = !node.selected
+        tree.selectNode(node, !node.selected, selectionMode == SelectionMode.MULTIPLE_WITH_CHILDREN)
+
+        nodeEventListener.onNodeSelectChanged(node, holder)
+
+        return true
+    }
+
     override fun onClick(node: TreeNode<T>, holder: ViewHolder) {
         if (node.isChild) {
             onToggle(node, !node.expand, holder)
@@ -457,14 +516,24 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             return
         }
 
-        coroutineScope.launch {
-            refresh(fastRefresh = true, node = node)
-        }
+        defaultRefresh(true, node)
+    }
 
+    private fun defaultRefresh(fastRefresh: Boolean = true, node: TreeNode<T>? = null) {
+        coroutineScope.launch {
+            refresh(fastRefresh, node)
+        }
     }
 
     override fun onLongClick(node: TreeNode<T>, holder: ViewHolder): Boolean {
-        return nodeEventListener.onLongClick(node, holder)
+        val clickResult = nodeEventListener.onLongClick(node, holder)
+        coroutineScope.launch(Dispatchers.Main) {
+            val supportChangeSelectStatus = trySelect(node, holder)
+            if (supportChangeSelectStatus) {
+                defaultRefresh(true, node)
+            }
+        }
+        return clickResult
     }
 
     override fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: ViewHolder) {
@@ -472,6 +541,41 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         nodeEventListener.onToggle(node, isExpand, holder)
     }
 
+
+    /**
+     * Selection mode of the TreeView
+     *
+     * @see [TreeView.selectionMode]
+     */
+    enum class SelectionMode {
+        /**
+         * Default mode.
+         *
+         * No selection
+         */
+        NONE,
+
+        /**
+         * Single selection mode
+         *
+         * Only one node can be selected
+         */
+        SINGLE,
+
+        /**
+         * Multiple selection mode
+         *
+         * Multiple nodes can be selected
+         */
+        MULTIPLE,
+
+        /**
+         * Multiple selection mode with children
+         *
+         *  Multiple nodes can be selected, and the children of the selected node will also be selected
+         */
+        MULTIPLE_WITH_CHILDREN,
+    }
 }
 
 /**
@@ -481,8 +585,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
  *
  * @see [TreeView.binder]
  */
-abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
-    TreeNodeEventListener<T> {
+abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
 
     private val nodeCacheHashCodes = mutableMapOf<Int, Int>()
     internal val changeNodes = mutableListOf<TreeNode<T>>()
@@ -530,6 +633,19 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
      */
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
+
+    /**
+     * Get the checkable view in the itemView.
+     *
+     * The TreeView will automatically check the node is selected. If the node is selected, the TreeView will call the [Checkable.setChecked] method to set the checkable view to checked.
+     *
+     * @param [node] target node
+     * @param [holder] The ViewHolder of the node
+     */
+    open fun getCheckableView(node: TreeNode<T>, holder: TreeView.ViewHolder): Checkable? {
+        return null
+    }
+
     @SuppressLint("DiffUtilEquals")
     final override fun areContentsTheSame(
         oldItem: TreeNode<T>,
@@ -556,6 +672,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>(),
     }
 }
 
+
 class EmptyTreeNodeEventListener : TreeNodeEventListener<Any>
 
 /**
@@ -581,7 +698,8 @@ interface TreeNodeEventListener<T : Any> {
      * @return `true` if the callback consumed the long click, false otherwise.
      */
     fun onLongClick(node: TreeNode<T>, holder: TreeView.ViewHolder): Boolean {
-        return false
+        // set true useful when you want to select node
+        return true
     }
 
     /**
@@ -592,4 +710,7 @@ interface TreeNodeEventListener<T : Any> {
      * @param holder Node binding of the holder
      */
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
+
+
+    fun onNodeSelectChanged(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
 }

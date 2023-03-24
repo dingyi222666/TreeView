@@ -1,5 +1,6 @@
 package io.github.dingyi222666.view.treeview
 
+import android.util.Log
 import android.util.SparseArray
 
 
@@ -9,6 +10,8 @@ import android.util.SparseArray
 class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     private val allNode = SparseArray<TreeNode<T>>()
+
+    private val selectedNodes = HashSet<TreeNode<T>>()
 
     private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
         HashSet()
@@ -146,9 +149,46 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return getParentNodeInternal(currentNodeId)?.let(::getNode)
     }
 
+    override suspend fun selectNode(node: TreeNode<T>, selected: Boolean, selectChild: Boolean) {
+
+        node.selected = selected
+
+        val evalFunc = { addNode: TreeNode<T> ->
+            if (selected) {
+                selectedNodes.add(addNode)
+            } else {
+                selectedNodes.remove(addNode)
+            }
+        }
+
+        Log.d("LogTest", selectedNodes.toString())
+        Log.d("LogTest",node.toString())
+        evalFunc(node)
+
+        if (!selectChild || !node.isChild) {
+            return
+        }
+
+        refreshWithChild(node, false)
+        val willRefreshNodes = ArrayDeque<TreeNode<T>>()
+
+        willRefreshNodes.add(node)
+
+        while (willRefreshNodes.isNotEmpty()) {
+            val currentNode = willRefreshNodes.removeFirst()
+            currentNode.selected = selected
+            evalFunc(currentNode)
+            getChildNodesForCache(currentNode).forEach {
+                willRefreshNodes.add(it)
+            }
+        }
+
+    }
+
+    override fun getSelectedNodes(): Set<TreeNode<T>> = selectedNodes
+
     override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
         getNodesInternal(nodeIdList)
-
 
     private suspend fun refreshInternal(parentNode: TreeNode<T>): Set<TreeNode<T>> {
         val childNodeCache = getChildNodesForCacheInternal(parentNode.id)
@@ -170,7 +210,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             targetChildNodeList.add(targetNode)
         }
 
-
         removeAndAddAllChild(parentNode, targetChildNodeList)
 
         return targetChildNodeList
@@ -188,6 +227,9 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
         while (willRefreshNodes.isNotEmpty()) {
             val currentRefreshNode = willRefreshNodes.removeLast()
+            if (!currentRefreshNode.isChild) {
+                continue
+            }
             val childNodes = refreshInternal(currentRefreshNode)
             for (childNode in childNodes) {
                 if (withExpandable && !childNode.expand) {

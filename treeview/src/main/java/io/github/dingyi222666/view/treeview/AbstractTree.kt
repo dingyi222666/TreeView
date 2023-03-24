@@ -126,6 +126,34 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      */
     fun getParentNode(currentNodeId: Int): TreeNode<T>?
 
+
+    /**
+     * Select the node.
+     *
+     * @param [node] Node that need to select
+     * @param [selected] Whether to select the node, if false, then the node will be unselected
+     * @param [selectChild] Whether to select all the child nodes, if false, then only the current node will be selected
+     */
+    suspend fun selectNode(node: TreeNode<T>, selected: Boolean = true, selectChild: Boolean = true)
+
+    /**
+     * Select all the nodes.
+     *
+     * @param [selected] Whether to select all the nodes, if false, then all the nodes will be unselected
+     * @see [selectNode]
+     */
+    suspend fun selectAllNode(selected: Boolean = true) {
+        selectNode(rootNode, selected)
+    }
+
+
+    /**
+     * Get the list of selected nodes.
+     *
+     * @return List of selected nodes
+     */
+    fun getSelectedNodes(): Set<TreeNode<T>>
+
     /**
      * Refresh the current node.
      *
@@ -261,7 +289,6 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
     fun getNode(id: Int): TreeNode<T>
 
 }
-
 
 /**
  * Convert the node data in a tree structure into an ordered list.
