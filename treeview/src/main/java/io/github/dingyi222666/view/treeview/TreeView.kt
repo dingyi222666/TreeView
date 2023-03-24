@@ -712,5 +712,6 @@ interface TreeNodeEventListener<T : Any> {
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
 
 
+    @Deprecated("Use AbstractTree.addTreeListener instead")
     fun onNodeSelectChanged(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
 }

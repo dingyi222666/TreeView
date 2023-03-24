@@ -290,6 +290,41 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
 
 }
 
+
+//TODO: Add more events
+interface TreeEventListener {
+
+    /**
+     * Called when the node is expanded
+     *
+     * @param [node] The node that is expanded
+     *
+     */
+    fun onNodeExpand(node: TreeNode<*>)
+
+    /**
+     * Called when the node is collapsed
+     *
+     * @param [node] The node that is collapsed
+     */
+    fun onNodeCollapse(node: TreeNode<*>)
+
+    /**
+     * Called when the node is refreshed
+     *
+     * @param [node] The node that is refreshed
+     */
+    fun onNodeRefresh(node: TreeNode<*>)
+
+    /**
+     * Called when the node is selected
+     *
+     * @param [node] The node that is selected
+     */
+    fun onNodeSelectChange(node: TreeNode<*>)
+
+}
+
 /**
  * Convert the node data in a tree structure into an ordered list.
  *

@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
             node: TreeNode<DataSource<String>>,
             holder: TreeView.ViewHolder
         ) {
-            // TODO....
+
         }
 
         override fun getCheckableView(
