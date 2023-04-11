@@ -32,6 +32,14 @@ open class TreeNode<T : Any>(
      */
     var depth: Int,
 
+
+    /**
+     * The path of the node.
+     *
+     *  The path of the node is a string that represents the path of the node relative to the root node.
+     */
+    var path: String = "/root",
+
     /**
      * The name of the node.
      *

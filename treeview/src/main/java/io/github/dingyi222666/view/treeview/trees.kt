@@ -11,7 +11,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     private val allNode = SparseArray<TreeNode<T>>()
 
-    private val selectedNodes = HashSet<TreeNode<T>>()
+    private val selectedNodes = mutableListOf<TreeNode<T>>()
 
     private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
         HashSet()
@@ -149,26 +149,30 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return getParentNodeInternal(currentNodeId)?.let(::getNode)
     }
 
+
+    private fun addOrRemoveSelectedNode(node: TreeNode<T>) {
+        val selected = node.selected
+        if (selected) {
+            selectedNodes.add(node)
+        } else {
+            // Why HashSet with this method is not working?
+            // ???
+            // So I use MutableList
+            selectedNodes.removeAll { next ->
+                next.path == node.path
+            }
+        }
+    }
+
     override suspend fun selectNode(node: TreeNode<T>, selected: Boolean, selectChild: Boolean) {
 
         node.selected = selected
 
-        val evalFunc = { addNode: TreeNode<T> ->
-            if (selected) {
-                selectedNodes.add(addNode)
-            } else {
-                selectedNodes.remove(addNode)
-            }
-        }
-
-        Log.d("LogTest", selectedNodes.toString())
-        Log.d("LogTest",node.toString())
-        evalFunc(node)
+        addOrRemoveSelectedNode(node)
 
         if (!selectChild || !node.isChild) {
             return
         }
-
         refreshWithChild(node, false)
         val willRefreshNodes = ArrayDeque<TreeNode<T>>()
 
@@ -177,7 +181,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         while (willRefreshNodes.isNotEmpty()) {
             val currentNode = willRefreshNodes.removeFirst()
             currentNode.selected = selected
-            evalFunc(currentNode)
+            addOrRemoveSelectedNode(node)
             getChildNodesForCache(currentNode).forEach {
                 willRefreshNodes.add(it)
             }
@@ -185,7 +189,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     }
 
-    override fun getSelectedNodes(): Set<TreeNode<T>> = selectedNodes
+    override fun getSelectedNodes(): List<TreeNode<T>> = selectedNodes
 
     override fun getNodes(nodeIdList: Set<Int>): List<TreeNode<T>> =
         getNodesInternal(nodeIdList)
@@ -206,6 +210,9 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         for (data in childNodeData) {
             val targetNode =
                 oldNodes.find { it.data == data } ?: generator.createNode(parentNode, data, this)
+            if (targetNode.path == "/root" && targetNode != rootNode) {
+                targetNode.path = parentNode.path + "/" + targetNode.name
+            }
             oldNodes.remove(targetNode)
             targetChildNodeList.add(targetNode)
         }

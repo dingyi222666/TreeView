@@ -481,14 +481,14 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         return when (selectionMode) {
             SelectionMode.NONE -> false
             SelectionMode.SINGLE -> {
-                val selectedNodes = tree.getSelectedNodes()
-                selectedNodes.isEmpty() || selectedNodes.find {
-                    it == node || (node.data == it.data && tree.getParentNode(node) ==
-                            tree.getParentNode(it))
-                } != null
+                tree.getSelectedNodes().let { selectedNodes ->
+                    selectedNodes.isEmpty() || selectedNodes.find {
+                        it == node || node.path == it.path
+                    } != null
+                }
             }
 
-            SelectionMode.MULTIPLE,SelectionMode.MULTIPLE_WITH_CHILDREN -> true
+            SelectionMode.MULTIPLE, SelectionMode.MULTIPLE_WITH_CHILDREN -> true
         }
     }
 
@@ -499,8 +499,6 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
         // node.selected = !node.selected
         tree.selectNode(node, !node.selected, selectionMode == SelectionMode.MULTIPLE_WITH_CHILDREN)
-
-        nodeEventListener.onNodeSelectChanged(node, holder)
 
         return true
     }
@@ -711,7 +709,4 @@ interface TreeNodeEventListener<T : Any> {
      */
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
 
-
-    @Deprecated("Use AbstractTree.addTreeListener instead")
-    fun onNodeSelectChanged(node: TreeNode<T>, holder: TreeView.ViewHolder) {}
 }

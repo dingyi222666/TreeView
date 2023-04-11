@@ -152,7 +152,7 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      *
      * @return List of selected nodes
      */
-    fun getSelectedNodes(): Set<TreeNode<T>>
+    fun getSelectedNodes(): List<TreeNode<T>>
 
     /**
      * Refresh the current node.
@@ -287,41 +287,6 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      * Get node pointed to from id
      */
     fun getNode(id: Int): TreeNode<T>
-
-}
-
-
-//TODO: Add more events
-interface TreeEventListener {
-
-    /**
-     * Called when the node is expanded
-     *
-     * @param [node] The node that is expanded
-     *
-     */
-    fun onNodeExpand(node: TreeNode<*>)
-
-    /**
-     * Called when the node is collapsed
-     *
-     * @param [node] The node that is collapsed
-     */
-    fun onNodeCollapse(node: TreeNode<*>)
-
-    /**
-     * Called when the node is refreshed
-     *
-     * @param [node] The node that is refreshed
-     */
-    fun onNodeRefresh(node: TreeNode<*>)
-
-    /**
-     * Called when the node is selected
-     *
-     * @param [node] The node that is selected
-     */
-    fun onNodeSelectChange(node: TreeNode<*>)
 
 }
 

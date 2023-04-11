@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
             this.tree = tree
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
-            selectionMode = TreeView.SelectionMode.NONE
+            selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
         }
 
         lifecycleScope.launch {
@@ -158,13 +158,6 @@ class MainActivity : AppCompatActivity() {
                 .rotation(if (node.expand) 90f else 0f)
                 .setDuration(200)
                 .start()
-
-        }
-
-        override fun onNodeSelectChanged(
-            node: TreeNode<DataSource<String>>,
-            holder: TreeView.ViewHolder
-        ) {
 
         }
 
