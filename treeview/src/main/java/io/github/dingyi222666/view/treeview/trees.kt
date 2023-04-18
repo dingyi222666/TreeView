@@ -153,7 +153,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     private fun addOrRemoveSelectedNode(node: TreeNode<T>) {
         val selected = node.selected
         if (selected) {
-            selectedNodes.add(node)
+            if (
+                selectedNodes.all { it.path != node.path }
+            ) {
+                selectedNodes.add(node)
+            }
         } else {
             // Why HashSet with this method is not working?
             // ???
@@ -177,11 +181,13 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         val willRefreshNodes = ArrayDeque<TreeNode<T>>()
 
         willRefreshNodes.add(node)
-
         while (willRefreshNodes.isNotEmpty()) {
             val currentNode = willRefreshNodes.removeFirst()
             currentNode.selected = selected
-            addOrRemoveSelectedNode(node)
+            addOrRemoveSelectedNode(currentNode)
+            if (!currentNode.isChild) {
+                continue
+            }
             getChildNodesForCache(currentNode).forEach {
                 willRefreshNodes.add(it)
             }
@@ -209,7 +215,11 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
         for (data in childNodeData) {
             val targetNode =
-                oldNodes.find { it.data == data  } ?: generator.createNode(parentNode, data, this)
+                oldNodes.find { it.data == data } ?: generator.createNode(parentNode, data, this)
+            Log.d(
+                "LogTest",
+                "targetNode.path = ${targetNode.path}, parentNode.path = ${parentNode.path}, targetNode == rootNode = ${targetNode == rootNode}"
+            )
             if (targetNode.path == "/root" && targetNode != rootNode) {
                 targetNode.path = parentNode.path + "/" + targetNode.name
             }

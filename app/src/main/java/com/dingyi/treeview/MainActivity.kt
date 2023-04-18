@@ -2,6 +2,7 @@ package com.dingyi.treeview
 
 import android.content.res.Resources
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -116,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         val showText = StringBuilder()
 
         selectedNodes.forEach {
+            Log.d("LogTest","hash: ${it.hashCode()}")
             showText.append(it.path).append("\n")
         }
 
