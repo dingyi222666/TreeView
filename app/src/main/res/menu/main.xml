@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    >
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/expand_all"
         android:orderInCategory="200"
@@ -21,5 +20,20 @@
         android:id="@+id/collapse_level"
         android:orderInCategory="200"
         android:title="Collapse Level 2"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/select_all"
+        android:orderInCategory="200"
+        android:title="Select All"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/deselect_all"
+        android:orderInCategory="200"
+        android:title="Deselect All"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/print_selected"
+        android:orderInCategory="200"
+        android:title="Print Selected Node(s)"
         app:showAsAction="never" />
 </menu>

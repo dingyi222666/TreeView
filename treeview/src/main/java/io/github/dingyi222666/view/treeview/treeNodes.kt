@@ -93,6 +93,7 @@ open class TreeNode<T : Any>(
         if (isChild != other.isChild) return false
         if (expand != other.expand) return false
         if (selected != other.selected) return false
+        if (data != other.data) return false
         return true
     }
 
@@ -104,6 +105,7 @@ open class TreeNode<T : Any>(
         result = 31 * result + expand.hashCode()
         result = 31 * result + hasChild.hashCode()
         result = 31 * result + selected.hashCode()
+        result = 31 * result + (data?.hashCode() ?: 0)
         return result
     }
 

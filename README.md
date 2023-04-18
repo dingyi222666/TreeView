@@ -20,9 +20,10 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 
 ## TODO
 
-- [ ] Select or Deselect Node
+- [x] Select or Deselect Node
 - [x] Better TreeNodeGenerator API
 - [ ] More API to operate the node in the tree, such as expand, collapse, etc.
+- [ ] Draggable nodes
 
 ## Usage
 

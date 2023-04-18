@@ -388,6 +388,16 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         refresh(true)
     }
 
+    /**
+     * Select the given node
+     *
+     * @param [node] Node to be selected
+     * @param [selected] Whether to select the node
+     */
+    suspend fun selectNode(node: TreeNode<T>, selected: Boolean) {
+        tree.selectNode(node, selected, selectionMode == SelectionMode.MULTIPLE_WITH_CHILDREN)
+        refresh(true, node)
+    }
 
     private fun initAdapter() {
         _adapter = Adapter(binder)
@@ -606,7 +616,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
      * @param [node] target node
      * @param [listener] The root event listener of the TreeView.
      *
-     * If you need to override the itemView's click event or other action separately,
+     * If you need to override the itemView's click event, from node's selected status, etc.
      * call this event listener after you have completed your action.
      *
      * Otherwise the listener you set will not work either.
@@ -635,7 +645,7 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
     /**
      * Get the checkable view in the itemView.
      *
-     * The TreeView will automatically check the node is selected. If the node is selected, the TreeView will call the [Checkable.setChecked] method to set the checkable view to checked.
+     * The TreeView will automatically check the node is selected. If the node is selected, the TreeView will call the [Checkable.setChecked] and [bindView].
      *
      * @param [node] target node
      * @param [holder] The ViewHolder of the node

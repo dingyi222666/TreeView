@@ -17,6 +17,7 @@ import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
 import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.dingyi222666.view.treeview.Branch
 import io.github.dingyi222666.view.treeview.CreateDataScope
 import io.github.dingyi222666.view.treeview.DataSource
@@ -49,12 +50,18 @@ class MainActivity : AppCompatActivity() {
             this.tree = tree
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
-            selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+            selectionMode = TreeView.SelectionMode.MULTIPLE
         }
 
         lifecycleScope.launch {
             binding.treeview.refresh()
         }
+
+        Toast.makeText(
+            this,
+            "If you want to select or deselect node, try to long click on it",
+            Toast.LENGTH_LONG
+        ).show()
 
     }
 
@@ -72,9 +79,55 @@ class MainActivity : AppCompatActivity() {
                 R.id.expand_all -> binding.treeview.expandAll()
                 R.id.expand_level -> binding.treeview.expandUntil(2)
                 R.id.collapse_level -> binding.treeview.collapseFrom(2)
+                R.id.select_all -> selectAllNode()
+                R.id.deselect_all -> deselectAllNode()
+                R.id.print_selected -> printSelectedNodes()
             }
         }
         return true
+    }
+
+
+    private fun selectAllNode() {
+        lifecycleScope.launch {
+            binding.treeview.apply {
+                // select node and it's children
+                selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                selectNode(binding.treeview.tree.rootNode, true)
+                expandAll()
+                selectionMode = TreeView.SelectionMode.MULTIPLE
+            }
+        }
+    }
+
+    private fun deselectAllNode() {
+        lifecycleScope.launch {
+            binding.treeview.apply {
+                // select node and it's children
+                selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                selectNode(binding.treeview.tree.rootNode, false)
+                selectionMode = TreeView.SelectionMode.MULTIPLE
+            }
+        }
+    }
+
+    private fun printSelectedNodes() {
+        val selectedNodes = (binding.treeview.tree as Tree<DataSource<String>>).getSelectedNodes()
+        val showText = StringBuilder()
+
+        selectedNodes.forEach {
+            showText.append(it.path).append("\n")
+        }
+
+        // Use MaterialAlertDialogBuilder to show selected nodes
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Selected Nodes")
+            .setMessage(showText.toString())
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun createTree(): Tree<DataSource<String>> {

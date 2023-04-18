@@ -209,7 +209,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
         for (data in childNodeData) {
             val targetNode =
-                oldNodes.find { it.data == data } ?: generator.createNode(parentNode, data, this)
+                oldNodes.find { it.data == data  } ?: generator.createNode(parentNode, data, this)
             if (targetNode.path == "/root" && targetNode != rootNode) {
                 targetNode.path = parentNode.path + "/" + targetNode.name
             }
