@@ -13,8 +13,8 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
 
     private val selectedNodes = mutableListOf<TreeNode<T>>()
 
-    private val allNodeAndChild = HashMultimap<Int, Int, HashSet<Int>> {
-        HashSet()
+    private val allNodeAndChild = HashMultimap<Int, Int, LinkedHashSet<Int>> {
+        LinkedHashSet()
     }
 
     private lateinit var _rootNode: TreeNode<T>
@@ -59,7 +59,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         putChildNode(parentNodeId, node.id)
     }
 
-    private fun removeAndAddAllChild(node: TreeNode<T>, list: Iterable<TreeNode<T>>) {
+    private fun removeAndAddAllChild(node: TreeNode<T>, list: LinkedHashSet<TreeNode<T>>) {
         removeAllChild(node)
         addAllChild(node, list)
     }
@@ -68,7 +68,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         return allNodeAndChild[nodeId] ?: emptySet()
     }
 
-    private fun addAllChild(parentNode: TreeNode<T>, currentNodes: Iterable<TreeNode<T>>) {
+    private fun addAllChild(parentNode: TreeNode<T>, currentNodes: LinkedHashSet<TreeNode<T>>) {
         parentNode.isChild = true
         parentNode.hasChild = true
 
@@ -203,7 +203,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     private suspend fun refreshInternal(parentNode: TreeNode<T>): Set<TreeNode<T>> {
         val childNodeCache = getChildNodesForCacheInternal(parentNode.id)
 
-        val targetChildNodeList = mutableSetOf<TreeNode<T>>()
+        val targetChildNodeList = LinkedHashSet<TreeNode<T>>()
         val childNodeData = generator.fetchNodeChildData(parentNode)
 
         if (childNodeData.isEmpty()) {
@@ -216,13 +216,13 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         for (data in childNodeData) {
             val targetNode =
                 oldNodes.find { it.data == data } ?: generator.createNode(parentNode, data, this)
+            if (targetNode.path == "/root" && targetNode != rootNode) {
+                targetNode.path = parentNode.path + "/" + targetNode.name
+            }
             Log.d(
                 "LogTest",
                 "targetNode.path = ${targetNode.path}, parentNode.path = ${parentNode.path}, targetNode == rootNode = ${targetNode == rootNode}"
             )
-            if (targetNode.path == "/root" && targetNode != rootNode) {
-                targetNode.path = parentNode.path + "/" + targetNode.name
-            }
             oldNodes.remove(targetNode)
             targetChildNodeList.add(targetNode)
         }
@@ -346,9 +346,9 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
                 continue
             }
 
-            children.sortedDescending().forEach {
+            children.forEach {
                 val childNode = getNode(it)
-                nodeQueue.addFirst(childNode)
+                nodeQueue.addLast(childNode)
             }
 
         }

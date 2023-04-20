@@ -306,15 +306,9 @@ suspend fun <T : Any> AbstractTree<T>.toSortedList(
 ): List<TreeNode<T>> {
     val result = mutableListOf<TreeNode<T>>()
 
-    val currentList = mutableListOf<TreeNode<T>>()
     val visitor = object : TreeVisitor<T> {
         override fun visitChildNode(node: TreeNode<T>): Boolean {
             if (node.depth >= 0) {
-                if (comparator != null) {
-                    currentList.sortWith(comparator)
-                }
-                result.addAll(currentList)
-                currentList.clear()
                 result.add(node)
             }
             return if (withExpandable) {
@@ -326,7 +320,7 @@ suspend fun <T : Any> AbstractTree<T>.toSortedList(
 
         override fun visitLeafNode(node: TreeNode<T>) {
             if (node.depth >= 0) {
-                currentList.add(node)
+                result.add(node)
             }
         }
 
@@ -334,11 +328,6 @@ suspend fun <T : Any> AbstractTree<T>.toSortedList(
 
     visit(visitor, fastVisit)
 
-    if (comparator != null) {
-        currentList.sortWith(comparator)
-    }
-    result.addAll(currentList)
-    currentList.clear()
 
     return result
 }
