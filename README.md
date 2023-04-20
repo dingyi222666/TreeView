@@ -22,6 +22,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 
 - [x] Select or Deselect Node
 - [x] Better TreeNodeGenerator API
+- [ ] Sorted Data in 
 - [ ] More API to operate the node in the tree, such as expand, collapse, etc.
 - [ ] Draggable nodes
 
@@ -167,6 +168,10 @@ lifecycleScope.launch {
 }
 
 ```
+
+- If you want to load dynamic data (etc. local file), you can see this example
+  [here](./app/src/main/java/com/dingyi/treeview/FileActivity.kt)
+
 
 - Done! Enjoy using it.
 

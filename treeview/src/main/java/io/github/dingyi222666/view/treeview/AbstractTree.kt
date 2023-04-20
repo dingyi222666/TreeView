@@ -301,13 +301,20 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
  * @see TreeVisitable
  */
 suspend fun <T : Any> AbstractTree<T>.toSortedList(
-    withExpandable: Boolean = true, fastVisit: Boolean = true
+    withExpandable: Boolean = true, fastVisit: Boolean = true,
+    comparator: Comparator<TreeNode<T>>? = null
 ): List<TreeNode<T>> {
     val result = mutableListOf<TreeNode<T>>()
 
+    val currentList = mutableListOf<TreeNode<T>>()
     val visitor = object : TreeVisitor<T> {
         override fun visitChildNode(node: TreeNode<T>): Boolean {
             if (node.depth >= 0) {
+                if (comparator != null) {
+                    currentList.sortWith(comparator)
+                }
+                result.addAll(currentList)
+                currentList.clear()
                 result.add(node)
             }
             return if (withExpandable) {
@@ -319,13 +326,19 @@ suspend fun <T : Any> AbstractTree<T>.toSortedList(
 
         override fun visitLeafNode(node: TreeNode<T>) {
             if (node.depth >= 0) {
-                result.add(node)
+                currentList.add(node)
             }
         }
 
     }
 
     visit(visitor, fastVisit)
+
+    if (comparator != null) {
+        currentList.sortWith(comparator)
+    }
+    result.addAll(currentList)
+    currentList.clear()
 
     return result
 }

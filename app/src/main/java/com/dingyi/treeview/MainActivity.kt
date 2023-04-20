@@ -1,5 +1,6 @@
 package com.dingyi.treeview
 
+import android.content.Intent
 import android.content.res.Resources
 import android.os.Bundle
 import android.util.Log
@@ -34,7 +35,7 @@ import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var binding: ActivityMainBinding
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +84,9 @@ class MainActivity : AppCompatActivity() {
                 R.id.select_all -> selectAllNode()
                 R.id.deselect_all -> deselectAllNode()
                 R.id.print_selected -> printSelectedNodes()
+                R.id.goto_file_activity -> {
+                    startActivity(Intent(this@MainActivity, FileActivity::class.java))
+                }
             }
         }
         return true

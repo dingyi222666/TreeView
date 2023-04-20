@@ -36,4 +36,10 @@
         android:orderInCategory="200"
         android:title="Print Selected Node(s)"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/goto_file_activity"
+        android:orderInCategory="200"
+        android:title="Go to File Activity"
+        app:showAsAction="never" />
 </menu>
