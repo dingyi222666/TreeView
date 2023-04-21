@@ -346,9 +346,9 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
                 continue
             }
 
-            children.forEach {
+            children.reversed().forEach {
                 val childNode = getNode(it)
-                nodeQueue.addLast(childNode)
+                nodeQueue.addFirst(childNode)
             }
 
         }
