@@ -1,8 +1,9 @@
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
-    id("com.vanniktech.maven.publish") version "0.23.1"
+    id("com.vanniktech.maven.publish") version "0.25.2"
     id("maven-publish")
+    signing
 }
 
 android {
@@ -34,12 +35,14 @@ android {
     }
 }
 
+
+
 mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.S01)
 
     signAllPublications()
 
-    coordinates("io.github.dingyi222666", "treeview", "1.1.0")
+    coordinates("io.github.dingyi222666", "treeview", "1.2.0")
 
     pom {
         name.set("TreeView")
@@ -67,6 +70,7 @@ mavenPublishing {
         }
     }
 }
+
 
 
 dependencies {

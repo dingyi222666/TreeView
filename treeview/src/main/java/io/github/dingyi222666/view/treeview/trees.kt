@@ -219,10 +219,10 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             if (targetNode.path == "/root" && targetNode != rootNode) {
                 targetNode.path = parentNode.path + "/" + targetNode.name
             }
-            Log.d(
+            /*Log.d(
                 "LogTest",
                 "targetNode.path = ${targetNode.path}, parentNode.path = ${parentNode.path}, targetNode == rootNode = ${targetNode == rootNode}"
-            )
+            )*/
             oldNodes.remove(targetNode)
             targetChildNodeList.add(targetNode)
         }
