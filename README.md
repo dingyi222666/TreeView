@@ -17,6 +17,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 ## Screenshot
 
 ![output.webp](./screenshots/main.webp)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdingyi222666%2FTreeView.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdingyi222666%2FTreeView?ref=badge_shield)
 
 ## TODO
 
@@ -180,3 +181,7 @@ lifecycleScope.launch {
 - [HackerMadCat/Multimap](https://github.com/HackerMadCat/Multimap) (Multimap implementation in
   kotlin)
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdingyi222666%2FTreeView.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdingyi222666%2FTreeView?ref=badge_large)
