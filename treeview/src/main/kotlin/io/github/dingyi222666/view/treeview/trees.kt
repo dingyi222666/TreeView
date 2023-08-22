@@ -1,6 +1,5 @@
 package io.github.dingyi222666.view.treeview
 
-import android.util.Log
 import android.util.SparseArray
 
 
@@ -204,7 +203,7 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         val childNodeCache = getChildNodesForCacheInternal(parentNode.id)
 
         val targetChildNodeList = LinkedHashSet<TreeNode<T>>()
-        val childNodeData = generator.fetchNodeChildData(parentNode)
+        val childNodeData = generator.fetchChildData(parentNode)
 
         if (childNodeData.isEmpty()) {
             removeAndAddAllChild(parentNode, targetChildNodeList)
@@ -219,10 +218,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
             if (targetNode.path == "/root" && targetNode != rootNode) {
                 targetNode.path = parentNode.path + "/" + targetNode.name
             }
-            /*Log.d(
-                "LogTest",
-                "targetNode.path = ${targetNode.path}, parentNode.path = ${parentNode.path}, targetNode == rootNode = ${targetNode == rootNode}"
-            )*/
             oldNodes.remove(targetNode)
             targetChildNodeList.add(targetNode)
         }
@@ -350,7 +345,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
                 val childNode = getNode(it)
                 nodeQueue.addFirst(childNode)
             }
-
         }
     }
 
@@ -382,7 +376,7 @@ interface TreeNodeGenerator<T : Any> {
      *
      * @return Data list of the children of the current node.
      */
-    suspend fun fetchNodeChildData(targetNode: TreeNode<T>): Set<T>
+    suspend fun fetchChildData(targetNode: TreeNode<T>): Set<T>
 
     /**
      * Given the data and the parent node, create a new node.

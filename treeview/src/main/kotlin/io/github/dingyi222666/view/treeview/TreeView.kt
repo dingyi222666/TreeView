@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -18,7 +17,6 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.properties.Delegates
 

@@ -181,7 +181,7 @@ class DataSourceNodeGenerator<T : Any>(
      */
     private val rootData: MultipleDataSource<T>
 ) : TreeNodeGenerator<DataSource<T>> {
-    override suspend fun fetchNodeChildData(targetNode: TreeNode<DataSource<T>>): Set<DataSource<T>> {
+    override suspend fun fetchChildData(targetNode: TreeNode<DataSource<T>>): Set<DataSource<T>> {
         return (targetNode.requireData() as MultipleDataSourceSupport<T>).list().toSet()
     }
 

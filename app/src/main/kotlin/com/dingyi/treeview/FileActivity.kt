@@ -287,7 +287,7 @@ class FileNodeGenerator(
     private val rootPath: File,
     private val fileListLoader: FileListLoader
 ) : TreeNodeGenerator<File> {
-    override suspend fun fetchNodeChildData(targetNode: TreeNode<File>): Set<File> {
+    override suspend fun fetchChildData(targetNode: TreeNode<File>): Set<File> {
         val path = targetNode.requireData().absolutePath
         var files = fileListLoader.getCacheFileList(path)
 

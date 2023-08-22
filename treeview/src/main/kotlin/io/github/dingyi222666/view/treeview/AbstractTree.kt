@@ -301,8 +301,7 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
  * @see TreeVisitable
  */
 suspend fun <T : Any> AbstractTree<T>.toSortedList(
-    withExpandable: Boolean = true, fastVisit: Boolean = true,
-    comparator: Comparator<TreeNode<T>>? = null
+    withExpandable: Boolean = true, fastVisit: Boolean = true
 ): List<TreeNode<T>> {
     val result = mutableListOf<TreeNode<T>>()
 
