@@ -53,10 +53,16 @@ class MainActivity : AppCompatActivity() {
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
             selectionMode = TreeView.SelectionMode.MULTIPLE
+
+            // forEachNode
+
+
         }
 
         lifecycleScope.launch {
             binding.treeview.refresh()
+          //  binding.treeview.expandUntil(1,true)
+            binding.treeview.expandAll(true)
         }
 
         Toast.makeText(
