@@ -94,6 +94,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      *
      * Set it to allow TreeView to drag and drop nodes.
      *
+     * **Note: This is still an experimental feature and some problems may arise.**
      */
     var supportDragging: Boolean = false
 
@@ -104,7 +105,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      *
      * you only need to turn it on when the indentation of the node binded view is too large, or when the width of the view itself is too large for the screen to be fully displayed.
      *
-     * Note: This is still an experimental feature and some problems may arise.
+     * **Note: This is still an experimental feature and some problems may arise.**
      */
     var supportHorizontalScroll by Delegates.observable(false) { _, old, new ->
         if (old == new) {
@@ -156,6 +157,8 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             initAdapter()
         }
 
+        nodeEventListener.onRefresh(true)
+
         var fastRefreshOnLocal = fastRefresh
 
         if (node != null) {
@@ -166,6 +169,8 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         val list = tree.toSortedList(fastVisit = fastRefreshOnLocal)
 
         _adapter.submitList(list)
+
+        nodeEventListener.onRefresh(false)
     }
 
     private fun getViewHolder(index: Int): ViewHolder? {
@@ -904,4 +909,10 @@ interface TreeNodeEventListener<T : Any> {
      */
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
 
+    /**
+     * Called when refresh is triggered.
+     *
+     * @param status The refresh status, the value is true when the refresh is triggered, and false when the refresh is completed.
+     */
+    fun onRefresh(status: Boolean) {}
 }

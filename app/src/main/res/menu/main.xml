@@ -32,6 +32,13 @@
         android:title="Deselect All"
         app:showAsAction="never" />
     <item
+        android:id="@+id/slow_mode"
+        android:orderInCategory="200"
+        android:checkable="true"
+        android:checked="false"
+        android:title="Slow Mode"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/drag_node"
         android:orderInCategory="200"
         android:checkable="true"

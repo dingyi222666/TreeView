@@ -21,6 +21,7 @@ import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.github.dingyi222666.view.treeview.AbstractTree
 import io.github.dingyi222666.view.treeview.Branch
 import io.github.dingyi222666.view.treeview.CreateDataScope
 import io.github.dingyi222666.view.treeview.DataSource
@@ -28,9 +29,11 @@ import io.github.dingyi222666.view.treeview.Leaf
 import io.github.dingyi222666.view.treeview.Tree
 import io.github.dingyi222666.view.treeview.TreeNode
 import io.github.dingyi222666.view.treeview.TreeNodeEventListener
+import io.github.dingyi222666.view.treeview.TreeNodeGenerator
 import io.github.dingyi222666.view.treeview.TreeView
 import io.github.dingyi222666.view.treeview.TreeViewBinder
 import io.github.dingyi222666.view.treeview.buildTree
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -39,6 +42,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
     private lateinit var tree: Tree<DataSource<String>>
+
+    private var isSlow = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             binding.treeview.refresh()
             //  binding.treeview.expandUntil(1,true)
-          //  binding.treeview.expandAll(true)
+            //  binding.treeview.expandAll(true)
         }
 
         Toast.makeText(
@@ -102,6 +107,11 @@ class MainActivity : AppCompatActivity() {
                         binding.treeview.selectionMode = TreeView.SelectionMode.MULTIPLE
                     }
                     item.isChecked = binding.treeview.supportDragging
+                }
+
+                R.id.slow_mode -> {
+                    isSlow = !isSlow
+                    item.isChecked = isSlow
                 }
             }
         }
@@ -156,7 +166,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun createTree(): Tree<DataSource<String>> {
         val dataCreator: CreateDataScope<String> = { _, _ -> UUID.randomUUID().toString() }
-        return buildTree(dataCreator) {
+        val tree = buildTree(dataCreator) {
             Branch("app") {
                 Branch("src") {
                     Branch("main") {
@@ -209,6 +219,35 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        val oldGenerator = tree.generator
+
+        tree.generator = object : TreeNodeGenerator<DataSource<String>> {
+            override suspend fun fetchChildData(targetNode: TreeNode<DataSource<String>>): Set<DataSource<String>> {
+                if (isSlow) {
+                    delay(5000L)
+                }
+                return oldGenerator.fetchChildData(targetNode)
+            }
+
+            override fun createNode(
+                parentNode: TreeNode<DataSource<String>>,
+                currentData: DataSource<String>,
+                tree: AbstractTree<DataSource<String>>
+            ): TreeNode<DataSource<String>> {
+                return oldGenerator.createNode(parentNode, currentData, tree)
+            }
+
+            override suspend fun moveNode(
+                srcNode: TreeNode<DataSource<String>>,
+                targetNode: TreeNode<DataSource<String>>,
+                tree: AbstractTree<DataSource<String>>
+            ): Boolean {
+                return oldGenerator.moveNode(srcNode, targetNode, tree)
+            }
+        }
+
+        return tree
     }
 
     inner class ViewBinder : TreeViewBinder<DataSource<String>>(),
@@ -321,6 +360,10 @@ class MainActivity : AppCompatActivity() {
             holder: TreeView.ViewHolder
         ) {
             applyDir(holder, node)
+        }
+
+        override fun onRefresh(status: Boolean) {
+            binding.progress.isVisible = status
         }
     }
 
