@@ -1,6 +1,7 @@
 package io.github.dingyi222666.view.treeview
 
 import android.util.SparseArray
+import androidx.core.util.putAll
 
 
 /**
@@ -168,7 +169,6 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
     }
 
     override suspend fun selectNode(node: TreeNode<T>, selected: Boolean, selectChild: Boolean) {
-
         node.selected = selected
 
         addOrRemoveSelectedNode(node)
@@ -293,22 +293,22 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         visitInternal(ExpandDepthTreeVisitor(depth), rootNode, !fullRefresh)
     }
 
-    companion object {
-        @get:Synchronized
-        @set:Synchronized
-        private var idx = 0
+    override suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean) {
+        visitInternal(visitor, rootNode, fastVisit)
+    }
 
-        /**
-         * Create a new tree structure to store data of type [T]
-         */
-        fun <T : Any> createTree(): Tree<T> {
-            return Tree()
-        }
+    override suspend fun visit(visitor: TreeVisitor<T>, rootNode: TreeNode<T>, fastVisit: Boolean) {
+        visitInternal(visitor, rootNode, fastVisit)
+    }
 
-        /**
-         * The root node ID, we recommend using this ID to mark the root node
-         */
-        const val ROOT_NODE_ID = 0
+    override fun copy(): Tree<T> {
+        val tree = createTree<T>()
+        tree.generator = generator
+        tree.rootNode = rootNode
+        tree.selectedNodes.addAll(selectedNodes)
+        tree.allNode.putAll(allNode)
+        tree.allNodeAndChild.putAll(allNodeAndChild)
+        return tree
     }
 
     private suspend fun visitInternal(
@@ -348,14 +348,24 @@ class Tree<T : Any> internal constructor() : AbstractTree<T> {
         }
     }
 
-    override suspend fun visit(visitor: TreeVisitor<T>, fastVisit: Boolean) {
-        visitInternal(visitor, rootNode, fastVisit)
-    }
 
-    override suspend fun visit(visitor: TreeVisitor<T>, rootNode: TreeNode<T>, fastVisit: Boolean) {
-        visitInternal(visitor, rootNode, fastVisit)
-    }
+    companion object {
+        @get:Synchronized
+        @set:Synchronized
+        private var idx = 0
 
+        /**
+         * Create a new tree structure to store data of type [T]
+         */
+        fun <T : Any> createTree(): Tree<T> {
+            return Tree()
+        }
+
+        /**
+         * The root node ID, we recommend using this ID to mark the root node
+         */
+        const val ROOT_NODE_ID = 0
+    }
 }
 
 /**
@@ -400,6 +410,14 @@ interface TreeNodeGenerator<T : Any> {
      */
     fun createRootNode(): TreeNode<T>? = null
 
+    /**
+     * like [AbstractTree.moveNode]
+     *
+     * @return Whether the node is moved successfully
+     */
+    suspend fun moveNode(srcNode: TreeNode<T>, targetNode: TreeNode<T>, tree: AbstractTree<T>): Boolean {
+        return false
+    }
 }
 
 /**

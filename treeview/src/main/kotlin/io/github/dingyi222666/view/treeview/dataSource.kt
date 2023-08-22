@@ -28,6 +28,11 @@ interface DataSource<T : Any> {
     var index: Int
 
     /**
+     * The parent?
+     */
+    var parent: DataSource<T>?
+
+    /**
      * same as [TreeNode.requireData]
      */
     fun requireData(): T {
@@ -44,6 +49,15 @@ interface MultipleDataSourceSupport<T : Any> {
      * Add a child data
      */
     fun add(child: DataSource<T>)
+
+    /**
+     * Add all child data
+     */
+    fun addAll(children: Iterable<DataSource<T>>) {
+        children.forEach {
+            add(it)
+        }
+    }
 
     /**
      * Delete a child data
@@ -63,12 +77,19 @@ interface MultipleDataSourceSupport<T : Any> {
     /**
      * List all child data
      */
-    fun list(): List<DataSource<T>>
+    fun toList(): List<DataSource<T>>
+
+    /**
+     * Set all child data
+     */
+    fun toSet(): Set<DataSource<T>>
 
     /**
      * Get the size of child data
      */
     fun size(): Int
+
+
 }
 
 private class MultipleDataSourceSupportHandler<T : Any> : MultipleDataSourceSupport<T> {
@@ -94,16 +115,20 @@ private class MultipleDataSourceSupportHandler<T : Any> : MultipleDataSourceSupp
         return childList.get(index)
     }
 
-    override fun list(): List<DataSource<T>> {
+    override fun toList(): List<DataSource<T>> {
         return childList.valueIterator().asSequence()
             .toList()
+    }
+
+    override fun toSet(): Set<DataSource<T>> {
+        return childList.valueIterator().asSequence()
+            .toSet()
     }
 
 
     override fun size(): Int {
         return childList.size
     }
-
 
 }
 
@@ -112,7 +137,8 @@ private class MultipleDataSourceSupportHandler<T : Any> : MultipleDataSourceSupp
  */
 open class SingleDataSource<T : Any> internal constructor(
     override val name: String,
-    override val data: T?
+    override val data: T?,
+    override var parent: DataSource<T>?
 ) : DataSource<T> {
     override var index = 0
     override fun equals(other: Any?): Boolean {
@@ -123,9 +149,7 @@ open class SingleDataSource<T : Any> internal constructor(
 
         if (name != other.name) return false
         if (data != other.data) return false
-        if (index != other.index) return false
-
-        return true
+        return index == other.index
     }
 
     override fun hashCode(): Int {
@@ -144,6 +168,7 @@ open class SingleDataSource<T : Any> internal constructor(
 open class MultipleDataSource<T : Any> internal constructor(
     override val name: String,
     override val data: T?,
+    override var parent: DataSource<T>? = null,
 ) : DataSource<T>, MultipleDataSourceSupport<T> by MultipleDataSourceSupportHandler() {
     override var index = 0
     override fun equals(other: Any?): Boolean {
@@ -154,9 +179,7 @@ open class MultipleDataSource<T : Any> internal constructor(
 
         if (name != other.name) return false
         if (data != other.data) return false
-        if (index != other.index) return false
-
-        return true
+        return index == other.index
     }
 
     override fun hashCode(): Int {
@@ -182,7 +205,7 @@ class DataSourceNodeGenerator<T : Any>(
     private val rootData: MultipleDataSource<T>
 ) : TreeNodeGenerator<DataSource<T>> {
     override suspend fun fetchChildData(targetNode: TreeNode<DataSource<T>>): Set<DataSource<T>> {
-        return (targetNode.requireData() as MultipleDataSourceSupport<T>).list().toSet()
+        return (targetNode.requireData() as MultipleDataSourceSupport<T>).toSet()
     }
 
     override fun createNode(
@@ -201,6 +224,47 @@ class DataSourceNodeGenerator<T : Any>(
             isChild = currentData is MultipleDataSource<T>,
             expand = false
         )
+    }
+
+    override suspend fun moveNode(
+        srcNode: TreeNode<DataSource<T>>,
+        targetNode: TreeNode<DataSource<T>>,
+        tree: AbstractTree<DataSource<T>>
+    ): Boolean {
+
+        println("moveNode: ${srcNode.path} -> ${targetNode.path}")
+
+        if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
+            return false
+        }
+
+        val targetData = targetNode.requireData()
+        val targetDataParent = targetData.parent
+        val srcData = srcNode.requireData()
+        val srcDataParent = srcData.parent
+
+
+        val targetDataSource = if (targetData is MultipleDataSourceSupport<*>) {
+            targetData as MultipleDataSourceSupport<T>
+        } else {
+            (targetDataParent as MultipleDataSourceSupport<T>)
+        }
+
+        val srcDataParentDataSource =
+            srcDataParent as MultipleDataSourceSupport<T>
+
+        srcDataParentDataSource.remove(srcData)
+
+        targetDataSource.add(srcData)
+
+        srcData.parent = if (targetData is MultipleDataSourceSupport<*>) {
+            targetData
+        } else {
+            targetDataParent
+        }
+
+
+        return true
     }
 
     override fun createRootNode(): TreeNode<DataSource<T>> {
@@ -228,7 +292,7 @@ typealias CreateDataScope<T> = (String, DataSource<T>) -> T
 class DataSourceScope<T : Any>(
     internal val currentDataSource: DataSource<T>
 ) {
-    internal var createDataScope: CreateDataScope<T> = { _, _ -> error("Not supproted") }
+    internal var createDataScope: CreateDataScope<T> = { _, _ -> error("Not supported") }
 }
 
 /**
@@ -246,7 +310,11 @@ fun <T : Any> DataSourceScope<T>.Branch(
     data: T? = null,
     scope: DataSourceScope<T>.() -> Unit
 ) {
-    val newData = MultipleDataSource(name, data ?: createDataScope.invoke(name, currentDataSource))
+    val newData = MultipleDataSource(
+        name,
+        data ?: createDataScope.invoke(name, currentDataSource),
+        currentDataSource
+    )
     if (currentDataSource is MultipleDataSourceSupport<*>) {
         (currentDataSource as MultipleDataSourceSupport<T>).add(newData)
     }
@@ -266,8 +334,12 @@ fun <T : Any> DataSourceScope<T>.Leaf(
     name: String,
     data: T? = null
 ) {
-    val newData = SingleDataSource(name, data ?: createDataScope.invoke(name, currentDataSource))
     if (currentDataSource is MultipleDataSourceSupport<*>) {
+        val newData = SingleDataSource(
+            name,
+            data ?: createDataScope.invoke(name, currentDataSource),
+            currentDataSource
+        )
         (currentDataSource as MultipleDataSourceSupport<T>).add(newData)
     }
 }
@@ -289,9 +361,11 @@ fun <T : Any> buildTree(
 
     val root = MultipleDataSource<T>("root", null)
     val rootScope = DataSourceScope(root)
+
     if (dataCreator != null) {
         rootScope.createDataScope = dataCreator
     }
+
     scope.invoke(rootScope)
 
     val tree = Tree<DataSource<T>>()

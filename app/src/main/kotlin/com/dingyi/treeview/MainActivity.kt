@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
@@ -37,6 +38,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    private lateinit var tree: Tree<DataSource<String>>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -45,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val tree = createTree()
+        this.tree = tree
 
         (binding.treeview as TreeView<DataSource<String>>).apply {
             supportHorizontalScroll = true
@@ -53,16 +57,12 @@ class MainActivity : AppCompatActivity() {
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
             selectionMode = TreeView.SelectionMode.MULTIPLE
-
-            // forEachNode
-
-
         }
 
         lifecycleScope.launch {
             binding.treeview.refresh()
-          //  binding.treeview.expandUntil(1,true)
-            binding.treeview.expandAll(true)
+            //  binding.treeview.expandUntil(1,true)
+          //  binding.treeview.expandAll(true)
         }
 
         Toast.makeText(
@@ -92,6 +92,16 @@ class MainActivity : AppCompatActivity() {
                 R.id.print_selected -> printSelectedNodes()
                 R.id.goto_file_activity -> {
                     startActivity(Intent(this@MainActivity, FileActivity::class.java))
+                }
+
+                R.id.drag_node -> {
+                    binding.treeview.supportDragging = !binding.treeview.supportDragging
+                    if (binding.treeview.supportDragging) {
+                        binding.treeview.selectionMode = TreeView.SelectionMode.NONE
+                    } else {
+                        binding.treeview.selectionMode = TreeView.SelectionMode.MULTIPLE
+                    }
+                    item.isChecked = binding.treeview.supportDragging
                 }
             }
         }
@@ -127,11 +137,11 @@ class MainActivity : AppCompatActivity() {
         val showText = StringBuilder()
 
         selectedNodes.forEach {
-            Log.d("LogTest","hash: ${it.hashCode()}")
+            Log.d("LogTest", "hash: ${it.hashCode()}")
             showText.append(it.path).append("\n")
         }
 
-        println(binding.treeview.tree.resolveNodeFromCache("/app"))
+        //println(binding.treeview.tree.resolveNodeFromCache("/app"))
 
         // Use MaterialAlertDialogBuilder to show selected nodes
 
@@ -150,9 +160,14 @@ class MainActivity : AppCompatActivity() {
             Branch("app") {
                 Branch("src") {
                     Branch("main") {
-                        Branch("java") {
+                        Branch("kotlin") {
                             Branch("com.dingyi.treeview") {
                                 Leaf("MainActivity.kt")
+                            }
+                        }
+                        Branch("java") {
+                            Branch("com.dingyi.treeview") {
+                                Leaf("MainActivity.java")
                             }
                         }
                         Branch("res") {
@@ -162,6 +177,34 @@ class MainActivity : AppCompatActivity() {
                             Branch("xml") {}
                         }
                         Leaf("AndroidManifest.xml")
+                    }
+                    Branch("test") {
+                        Branch("java") {
+                            Branch("com.dingyi.treeview") {
+                                Leaf("ExampleUnitTest.kt")
+                            }
+                        }
+                    }
+
+                }
+                Leaf("build.gradle")
+                Leaf("gradle.properties")
+            }
+            Branch("build") {
+                Branch("generated") {
+                    Branch("source") {
+                        Branch("buildConfig") {
+                            Branch("debug") {
+                                Leaf("com.dingyi.treeview.BuildConfig.java")
+                            }
+                        }
+                    }
+                }
+                Branch("outputs") {
+                    Branch("apk") {
+                        Branch("debug") {
+                            Leaf("app-debug.apk")
+                        }
                     }
                 }
             }
@@ -197,11 +240,7 @@ class MainActivity : AppCompatActivity() {
                 applyFile(holder, node)
             }
 
-            val itemView = holder.itemView.findViewById<Space>(R.id.space)
-
-            itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = node.depth * 22.dp
-            }
+            applyDepth(holder, node)
 
             (getCheckableView(node, holder) as MaterialCheckBox).apply {
                 isVisible = node.selected
@@ -213,6 +252,14 @@ class MainActivity : AppCompatActivity() {
             val binding = ItemFileBinding.bind(holder.itemView)
             binding.tvName.text = node.name.toString()
 
+        }
+
+        private fun applyDepth(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
+            val itemView = holder.itemView.findViewById<Space>(R.id.space)
+
+            itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = node.depth * 22.dp
+            }
         }
 
         private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<DataSource<String>>) {
@@ -245,6 +292,27 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this@MainActivity, "Clicked ${node.name}", Toast.LENGTH_LONG).show()
             }
+        }
+
+        override fun onMoveView(
+            srcHolder: RecyclerView.ViewHolder,
+            srcNode: TreeNode<DataSource<String>>,
+            targetHolder: RecyclerView.ViewHolder?,
+            targetNode: TreeNode<DataSource<String>>?
+        ): Boolean {
+            applyDepth(srcHolder as TreeView.ViewHolder, srcNode)
+
+            srcHolder.itemView.alpha = 0.7f
+
+            return true
+        }
+
+        override fun onMovedView(
+            srcNode: TreeNode<DataSource<String>>,
+            targetNode: TreeNode<DataSource<String>>?,
+            holder: RecyclerView.ViewHolder
+        ) {
+            holder.itemView.alpha = 1f
         }
 
         override fun onToggle(

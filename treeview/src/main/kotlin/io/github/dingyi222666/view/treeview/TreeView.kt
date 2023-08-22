@@ -11,13 +11,16 @@ import android.view.ViewGroup
 import android.widget.Checkable
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Collections
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.properties.Delegates
 
 /**
@@ -87,6 +90,14 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     }
 
     /**
+     * Whether to support drag and drop.
+     *
+     * Set it to allow TreeView to drag and drop nodes.
+     *
+     */
+    var supportDragging: Boolean = false
+
+    /**
      * Whether horizontal scrolling is supported.
      *
      * In most cases, you don't need to turn it on.
@@ -96,7 +107,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * Note: This is still an experimental feature and some problems may arise.
      */
     var supportHorizontalScroll by Delegates.observable(false) { _, old, new ->
-        if (!this::coroutineScope.isInitialized || old == new) {
+        if (old == new) {
             return@observable
         }
         if (!new) {
@@ -106,107 +117,15 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     }
 
     private lateinit var _adapter: Adapter
+    private val _itemTouchHelperCallback: ItemTouchHelperCallback
 
-    private lateinit var coroutineScope: CoroutineScope
+    private var coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 
-    class ViewHolder(
-        rootView: View,
-    ) : RecyclerView.ViewHolder(rootView)
+    init {
+        this._itemTouchHelperCallback = ItemTouchHelperCallback()
 
-    private inner class Adapter(val binder: TreeViewBinder<T>) :
-        ListAdapter<TreeNode<T>, ViewHolder>(binder as DiffUtil.ItemCallback<TreeNode<T>>) {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val itemView = binder.createView(parent, viewType)
-            return ViewHolder(itemView)
-        }
-
-        override fun getItemViewType(position: Int): Int {
-            return binder.getItemViewType(getItem(position))
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val rootView = this@TreeView
-            val node = getItem(position)
-
-            holder.itemView.apply {
-                setOnClickListener {
-                    rootView.onClick(node, holder)
-                }
-
-                setOnLongClickListener {
-                    return@setOnLongClickListener rootView.onLongClick(node, holder)
-                }
-
-                isLongClickable = true
-            }
-
-
-            binder.bindView(holder, node, rootView)
-
-            val checkableView = binder.getCheckableView(node, holder)
-
-            if (checkableView != null) {
-                checkableView.isChecked = node.selected
-            }
-
-            if (supportHorizontalScroll) {
-                holder.itemView.apply {
-                    // Get child's preferred size
-                    updateLayoutParams<ViewGroup.LayoutParams> {
-                        width = LayoutParams.WRAP_CONTENT
-                        height = LayoutParams.WRAP_CONTENT
-                    }
-                    measure(
-                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
-                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-                    )
-                    // Apply a large width and measured height
-                    updateLayoutParams<ViewGroup.LayoutParams> {
-                        width = 1000000
-                        height = holder.itemView.measuredHeight
-
-                    }
-                    // Save current measured width for later usage
-                    setTag(
-                        R.id.tag_measured_width,
-                        holder.itemView.measuredWidth
-                    )
-                }
-            } else {
-                holder.itemView.updateLayoutParams<ViewGroup.LayoutParams> {
-                    width = LayoutParams.MATCH_PARENT
-                    height = LayoutParams.WRAP_CONTENT
-                }
-            }
-        }
-
-        override fun getItemId(position: Int): Long {
-            return getItem(position).id.toLong()
-        }
-
-        internal fun refresh() {
-            val currentData = currentList.toMutableList()
-            submitList(listOf())
-            submitList(currentData)
-        }
-
-        override fun onCurrentListChanged(
-            previousList: MutableList<TreeNode<T>>,
-            currentList: MutableList<TreeNode<T>>
-        ) {
-            super.onCurrentListChanged(previousList, currentList)
-
-            for (changeNode in binder.changeNodes) {
-                val changePosition = currentList.indexOf(changeNode)
-                getViewHolder(changePosition)?.let { holder ->
-                    onBindViewHolder(holder, changePosition)
-                }
-            }
-
-            binder.changeNodes.clear()
-        }
-
+        val itemTouchHelper = ItemTouchHelper(_itemTouchHelperCallback)
+        itemTouchHelper.attachToRecyclerView(this)
     }
 
     /**
@@ -219,6 +138,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     fun bindCoroutineScope(coroutineScope: CoroutineScope) {
         this.coroutineScope = coroutineScope
     }
+
 
     /**
      * Refresh the data.
@@ -548,6 +468,239 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     }
 
 
+    class ViewHolder(
+        rootView: View
+    ) : RecyclerView.ViewHolder(rootView)
+
+    private inner class ItemTouchHelperCallback : ItemTouchHelper.Callback() {
+
+        private var tempMoveNodes: Pair<TreeNode<T>, TreeNode<T>>? = null
+        private var originNode: TreeNode<T>? = null
+
+        override fun getMovementFlags(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder
+        ): Int {
+            return makeMovementFlags(
+                if (supportDragging) ItemTouchHelper.UP or ItemTouchHelper.DOWN else 0,
+                0
+            )
+        }
+
+        override fun onMove(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ): Boolean {
+            val srcNode = this@TreeView._adapter.getItem(viewHolder.adapterPosition)
+            // look up?
+            var targetNode = this@TreeView._adapter.getItem(max(0, target.adapterPosition - 1))
+
+            if (targetNode.depth == 0) {
+                targetNode = tree.getParentNode(targetNode) ?: targetNode
+            }
+
+            if (srcNode.path == targetNode.path) {
+                targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
+            }
+
+            if (originNode == null) {
+                originNode = srcNode
+            }
+
+            val canMove = binder.onMoveView(viewHolder, srcNode, target, targetNode)
+
+            tempMoveNodes = Pair(srcNode, targetNode)
+
+            if (!canMove) {
+                return false
+            }
+
+            return this@TreeView._adapter.onMoveHolder(viewHolder, target)
+        }
+
+        override fun isItemViewSwipeEnabled(): Boolean = false
+
+        override fun isLongPressDragEnabled(): Boolean {
+            return supportDragging
+        }
+
+        override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+            if (viewHolder == null) {
+                return
+            }
+            val srcNode = this@TreeView._adapter.getItem(viewHolder.adapterPosition)
+            when (actionState) {
+                ItemTouchHelper.ACTION_STATE_DRAG -> {
+                    binder.onMoveView(viewHolder, srcNode)
+                }
+
+                ItemTouchHelper.ACTION_STATE_IDLE -> {
+                    binder.onMovedView(srcNode, null, viewHolder)
+                }
+            }
+        }
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+            // Do nothing
+        }
+
+        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+            super.clearView(recyclerView, viewHolder)
+            val (left, right) = tempMoveNodes ?: return
+
+            this@TreeView.coroutineScope.launch(Dispatchers.Main) {
+                this@TreeView.binder.onMovedView(
+                    left,
+                    right,
+                    viewHolder
+                )
+                left.depth = originNode?.depth ?: left.depth
+                this@TreeView.tree.moveNode(left, right)
+                this@TreeView.refresh(false)
+            }
+
+            tempMoveNodes = null
+            originNode = null
+        }
+    }
+
+
+    private inner class Adapter(val binder: TreeViewBinder<T>) :
+        ListAdapter<TreeNode<T>, ViewHolder>(binder as DiffUtil.ItemCallback<TreeNode<T>>) {
+
+        public override fun getItem(position: Int): TreeNode<T> {
+            return super.getItem(position)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val itemView = binder.createView(parent, viewType)
+            return ViewHolder(itemView)
+        }
+
+        override fun getItemViewType(position: Int): Int {
+            return binder.getItemViewType(getItem(position))
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val rootView = this@TreeView
+            val node = getItem(position)
+
+            holder.itemView.apply {
+                setOnClickListener {
+                    rootView.onClick(node, holder)
+                }
+
+                setOnLongClickListener {
+                    return@setOnLongClickListener rootView.onLongClick(node, holder)
+                }
+
+                isLongClickable = true
+            }
+
+            binder.bindView(holder, node, rootView)
+
+            val checkableView = binder.getCheckableView(node, holder)
+
+            if (checkableView != null) {
+                checkableView.isChecked = node.selected
+            }
+
+            if (supportHorizontalScroll) {
+                holder.itemView.apply {
+                    // Get child's preferred size
+                    updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = LayoutParams.WRAP_CONTENT
+                        height = LayoutParams.WRAP_CONTENT
+                    }
+                    measure(
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                    )
+                    // Apply a large width and measured height
+                    updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = 1000000
+                        height = holder.itemView.measuredHeight
+
+                    }
+                    // Save current measured width for later usage
+                    setTag(
+                        R.id.tag_measured_width,
+                        holder.itemView.measuredWidth
+                    )
+                }
+            } else {
+                holder.itemView.updateLayoutParams<ViewGroup.LayoutParams> {
+                    width = LayoutParams.MATCH_PARENT
+                    height = LayoutParams.WRAP_CONTENT
+                }
+            }
+        }
+
+        override fun getItemId(position: Int): Long {
+            return getItem(position).id.toLong()
+        }
+
+        internal fun refresh() {
+            val currentData = currentList.toMutableList()
+            submitList(listOf())
+            submitList(currentData)
+        }
+
+        override fun onCurrentListChanged(
+            previousList: MutableList<TreeNode<T>>,
+            currentList: MutableList<TreeNode<T>>
+        ) {
+            super.onCurrentListChanged(previousList, currentList)
+
+            for (changeNode in binder.changeNodes) {
+                val changePosition = currentList.indexOf(changeNode)
+                getViewHolder(changePosition)?.let { holder ->
+                    onBindViewHolder(holder, changePosition)
+                }
+            }
+
+            binder.changeNodes.clear()
+        }
+
+        // Only move in cache, not in tree
+        fun onMoveHolder(
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ): Boolean {
+            val srcNode = getItem(viewHolder.adapterPosition)
+            var targetNode = getItem(max(0, target.adapterPosition - 1))
+
+            if (targetNode.depth == 0) {
+                targetNode = tree.getParentNode(targetNode) ?: targetNode
+            }
+
+            if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
+                return false
+            }
+
+            if (srcNode.path == targetNode.path) {
+                targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
+            }
+
+            srcNode.depth = if (targetNode.isChild) {
+                targetNode.depth + 1
+            } else {
+                targetNode.depth
+            }
+
+            val currentList = currentList.toMutableList()
+
+            Collections.swap(currentList, viewHolder.adapterPosition, target.adapterPosition)
+
+            submitList(currentList)
+
+            return true
+        }
+
+    }
+
+
     /**
      * Selection mode of the TreeView
      *
@@ -639,6 +792,40 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
      */
     abstract fun getItemViewType(node: TreeNode<T>): Int
 
+    /**
+     * like [ItemTouchHelper.Callback.clearView]
+     *
+     * Called when the view is released after dragging.
+     *
+     * You can override this method to do some operations on the view, such as set background color, etc.
+     *
+     * And you need to call [AbstractTree.moveNode], otherwise the node will not be moved.
+     *
+     *
+     * @see [ItemTouchHelper.Callback.clearView]
+     */
+    open fun onMovedView(
+        srcNode: TreeNode<T>,
+        targetNode: TreeNode<T>? = null,
+        holder: RecyclerView.ViewHolder
+    ) {
+    }
+
+    /**
+     * like [ItemTouchHelper.Callback.onSelectedChanged]
+     *
+     * Called when the view is selected after dragging.
+     *
+     * You can override this method to do some operations on the view, such as set background color, etc.
+     */
+    open fun onMoveView(
+        srcHolder: RecyclerView.ViewHolder,
+        srcNode: TreeNode<T>,
+        targetHolder: RecyclerView.ViewHolder? = null,
+        targetNode: TreeNode<T>? = null,
+    ): Boolean {
+        return true
+    }
 
     /**
      * Get the checkable view in the itemView.
@@ -716,6 +903,5 @@ interface TreeNodeEventListener<T : Any> {
      * @param holder Node binding of the holder
      */
     fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: TreeView.ViewHolder) {}
-
 
 }

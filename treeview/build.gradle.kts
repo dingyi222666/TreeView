@@ -74,7 +74,7 @@ mavenPublishing {
 
 
 dependencies {
-    compileOnly("androidx.core:core-ktx:1.9.0")
-    compileOnly("androidx.appcompat:appcompat:1.6.0")
-    compileOnly("com.google.android.material:material:1.8.0")
+    compileOnly("androidx.core:core-ktx:1.10.1")
+    compileOnly("androidx.appcompat:appcompat:1.6.1")
+    compileOnly("com.google.android.material:material:1.9.0")
 }

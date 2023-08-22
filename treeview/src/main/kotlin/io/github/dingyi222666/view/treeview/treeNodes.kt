@@ -121,6 +121,23 @@ open class TreeNode<T : Any>(
         return checkNotNull(data)
     }
 
+    /**
+     * shallow copy this node.
+     */
+    fun copy(): TreeNode<T> {
+        return TreeNode(
+            data = data,
+            depth = depth,
+            name = name,
+            id = id,
+            hasChild = hasChild,
+            isChild = isChild,
+            expand = expand,
+        ).apply {
+            selected = this@TreeNode.selected
+        }
+    }
+
     override fun toString(): String {
         return "TreeNode(data=$data, depth=$depth, name=$name, id=$id, hasChild=$hasChild, isChild=$isChild, expand=$expand, selected=$selected)"
     }

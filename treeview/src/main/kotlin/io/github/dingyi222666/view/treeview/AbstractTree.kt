@@ -83,7 +83,13 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
             val childNodes = getChildNodesForCache(currentNode)
             val node = childNodes.find { it.name == name }
             if (node == null) {
-                throw IllegalArgumentException("Can't find node with path $realPath when resolve path to ${pathList.slice(0..i).joinToString(separator = "/")}")
+                throw IllegalArgumentException(
+                    "Can't find node with path $realPath when resolve path to ${
+                        pathList.slice(
+                            0..i
+                        ).joinToString(separator = "/")
+                    }"
+                )
             } else {
                 currentNode = node
             }
@@ -105,7 +111,13 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
             val childNodes = getChildNodes(currentNode)
             val node = childNodes.find { it.name == name }
             if (node == null) {
-                throw IllegalArgumentException("Can't find node with path $realPath when resolve path to ${pathList.slice(0..i).joinToString(separator = "/")}")
+                throw IllegalArgumentException(
+                    "Can't find node with path $realPath when resolve path to ${
+                        pathList.slice(
+                            0..i
+                        ).joinToString(separator = "/")
+                    }"
+                )
             } else {
                 currentNode = node
             }
@@ -339,6 +351,21 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      */
     fun getNode(id: Int): TreeNode<T>
 
+    /**
+     * shallow copy the tree. The new tree will have the same root node as the original tree.
+     */
+    fun copy(): AbstractTree<T>
+
+    /**
+     * move the node to the target node.
+     *
+     * If the target node and the node are have the same parent node, you will return false.
+     *
+     */
+    suspend fun moveNode(srcNode: TreeNode<T>, targetNode: TreeNode<T>): Boolean {
+        return generator.moveNode(srcNode, targetNode, this)
+    }
+
 }
 
 /**
@@ -377,7 +404,6 @@ suspend fun <T : Any> AbstractTree<T>.toSortedList(
     }
 
     visit(visitor, fastVisit)
-
 
     return result
 }
