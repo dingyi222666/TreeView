@@ -62,6 +62,57 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
         createRootNode()
     }
 
+
+    /**
+     * Get the node pointed to by the path from the cache.
+     *
+     * The path is a string that represents the path to the node.
+     *
+     * Such as: "/path/to" represents the node with name "to" under the node with name "path"
+     *
+     * **Tips: The path must start with "/"**
+     *
+     * @param path path
+     */
+    fun resolveNodeFromCache(path: String): TreeNode<T> {
+        val realPath = if (path.startsWith("/root")) path.substring(5) else path
+        val pathList = realPath.split("/")
+        var currentNode = rootNode
+        for (i in 1 until pathList.size) {
+            val name = pathList[i]
+            val childNodes = getChildNodesForCache(currentNode)
+            val node = childNodes.find { it.name == name }
+            if (node == null) {
+                throw IllegalArgumentException("Can't find node with path $realPath when resolve path to ${pathList.slice(0..i).joinToString(separator = "/")}")
+            } else {
+                currentNode = node
+            }
+        }
+        return currentNode
+    }
+
+    /**
+     * Get the list of children of the current node.
+     *
+     * Like [resolveNodeFromCache] but always load node form [TreeNodeGenerator]
+     */
+    suspend fun resolveNode(path: String): TreeNode<T> {
+        val realPath = if (path.startsWith("/root")) path.substring(5) else path
+        val pathList = realPath.split("/")
+        var currentNode = rootNode
+        for (i in 1 until pathList.size) {
+            val name = pathList[i]
+            val childNodes = getChildNodes(currentNode)
+            val node = childNodes.find { it.name == name }
+            if (node == null) {
+                throw IllegalArgumentException("Can't find node with path $realPath when resolve path to ${pathList.slice(0..i).joinToString(separator = "/")}")
+            } else {
+                currentNode = node
+            }
+        }
+        return currentNode
+    }
+
     /**
      * Get the list of children of the current node.
      *

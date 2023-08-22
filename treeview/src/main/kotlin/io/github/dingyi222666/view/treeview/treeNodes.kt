@@ -93,8 +93,7 @@ open class TreeNode<T : Any>(
         if (isChild != other.isChild) return false
         if (expand != other.expand) return false
         if (selected != other.selected) return false
-        if (data != other.data) return false
-        return true
+        return data == other.data
     }
 
     override fun hashCode(): Int {

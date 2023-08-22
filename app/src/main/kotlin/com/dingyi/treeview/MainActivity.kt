@@ -131,6 +131,8 @@ class MainActivity : AppCompatActivity() {
             showText.append(it.path).append("\n")
         }
 
+        println(binding.treeview.tree.resolveNodeFromCache("/app"))
+
         // Use MaterialAlertDialogBuilder to show selected nodes
 
         MaterialAlertDialogBuilder(this)
