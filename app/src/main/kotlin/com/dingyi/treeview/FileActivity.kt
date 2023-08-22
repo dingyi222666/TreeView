@@ -334,8 +334,8 @@ class FileListLoader {
     private val cacheFiles = mutableMapOf<String, MutableList<File>>()
 
 
-    private fun getFileList(file: File): Array<File> {
-        return (file.listFiles() ?: emptyArray()).apply {
+    private fun getFileList(file: File): List<File> {
+        return (file.listFiles() ?: emptyArray()).run {
             sortedWith { o1, o2 ->
                 if (o1.isDirectory && o2.isFile) {
                     -1
