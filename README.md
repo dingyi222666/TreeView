@@ -17,6 +17,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 ## Screenshot
 
 ![output.webp](./screenshots/main.webp)
+![output.webp](./screenshots/main_2.webp)
 
 ## TODO
 
