@@ -2,7 +2,7 @@
 
 An TreeView implement in Android with RecyclerView written in kotlin.
 
-[![CI Build Stauts](https://github.com/dingyi222666/TreeView/actions/workflows/android.yml/badge.svg)](https://github.com/dingyi222666/TreeView/tree/main/.github/workflows/android.yml)
+[![CI Build Status](https://github.com/dingyi222666/TreeView/actions/workflows/android.yml/badge.svg)](https://github.com/dingyi222666/TreeView/tree/main/.github/workflows/android.yml)
 ![maven-central](https://img.shields.io/maven-central/v/io.github.dingyi222666/treeview.svg)
 [![GitHub license](https://img.shields.io/github/license/dingyi222666/TreeView)](https://github.com/dingyi222666/TreeView/blob/main/LICENSE)
 
@@ -23,14 +23,14 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 - [x] Select or Deselect Node
 - [x] Better TreeNodeGenerator API
 - [ ] More API to operate the node in the tree, such as expand, collapse, etc.
-- [ ] Draggable nodes
+- [x] Draggable nodes
 
 ## Usage
 
 - Add the dependency to your gradle file
 
 ```groovy
-implementation("io.github.dingyi222666:treeview:1.2.1")
+implementation("io.github.dingyi222666:treeview:1.3.0")
 ```
 
 - Use the `DataSource` DSL to create tree used for the TreeView. Also you can [use the `TreeNodeGenerator`](https://github.com/dingyi222666/TreeView/issues/4) to create the tree.
