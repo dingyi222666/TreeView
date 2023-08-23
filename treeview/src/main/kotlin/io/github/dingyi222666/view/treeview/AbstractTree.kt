@@ -361,6 +361,8 @@ interface AbstractTree<T : Any> : TreeVisitable<T>, TreeIdGenerator {
      *
      * If the target node and the node are have the same parent node, you will return false.
      *
+     * You need move the real data by yourself.
+     *
      */
     suspend fun moveNode(srcNode: TreeNode<T>, targetNode: TreeNode<T>): Boolean {
         return generator.moveNode(srcNode, targetNode, this)
