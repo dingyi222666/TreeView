@@ -245,7 +245,7 @@ class DataSourceNodeGenerator<T : Any>(
         val targetDataSource = if (targetData is MultipleDataSourceSupport<*>) {
             targetData as MultipleDataSourceSupport<T>
         } else {
-            (targetDataParent as MultipleDataSourceSupport<T>)
+            targetDataParent as MultipleDataSourceSupport<T>
         }
 
         val srcDataParentDataSource =

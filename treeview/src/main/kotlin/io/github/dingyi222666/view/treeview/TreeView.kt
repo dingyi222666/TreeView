@@ -87,7 +87,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         if (old == new) {
             return@observable
         }
-        defaultRefresh()
+        selectionRefresh(old, new)
     }
 
     /**
@@ -454,6 +454,18 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     private fun defaultRefresh(fastRefresh: Boolean = true, node: TreeNode<T>? = null) {
         coroutineScope.launch {
             refresh(fastRefresh, node)
+        }
+    }
+
+    private fun selectionRefresh(old: SelectionMode, new: SelectionMode) {
+        if (old == new) {
+            return
+        }
+        coroutineScope.launch {
+            if (old !== SelectionMode.NONE) {
+                tree.selectAllNode(false)
+            }
+            refresh(true)
         }
     }
 

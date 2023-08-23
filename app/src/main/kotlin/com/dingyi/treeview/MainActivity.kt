@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             this.tree = tree
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
-            selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+            selectionMode = TreeView.SelectionMode.NONE
         }
 
         lifecycleScope.launch {
@@ -78,6 +78,25 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.drag_node).apply {
+            isChecked = binding.treeview.supportDragging
+            isEnabled =
+                binding.treeview.selectionMode != TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+        }
+        menu.findItem(R.id.select_mode).apply {
+            isChecked =
+                binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+            isEnabled = !binding.treeview.supportDragging
+        }
+        menu.findItem(R.id.slow_mode).apply {
+            isChecked = isSlow
+        }
+        menu.findItem(R.id.selected_group).apply {
+            isEnabled = binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+        }
+        return super.onPrepareOptionsMenu(menu)
+    }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         lifecycleScope.launch {
@@ -103,6 +122,19 @@ class MainActivity : AppCompatActivity() {
                     item.isChecked = binding.treeview.supportDragging
                 }
 
+                R.id.select_mode -> {
+                    binding.treeview.selectionMode =
+                        if (binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN) {
+                            deselectAllNode()
+                            TreeView.SelectionMode.NONE
+                        } else {
+                            TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                        }
+
+                    item.isChecked =
+                        binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                }
+
                 R.id.slow_mode -> {
                     isSlow = !isSlow
                     item.isChecked = isSlow
@@ -120,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                 selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
                 selectNode(binding.treeview.tree.rootNode, true)
                 expandAll()
-                selectionMode = TreeView.SelectionMode.MULTIPLE
+                selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
             }
         }
     }
@@ -129,9 +161,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             binding.treeview.apply {
                 // select node and it's children
-                selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
-                selectNode(binding.treeview.tree.rootNode, false)
-                selectionMode = TreeView.SelectionMode.MULTIPLE
+                selectionMode = TreeView.SelectionMode.NONE
             }
         }
     }
@@ -219,7 +249,7 @@ class MainActivity : AppCompatActivity() {
         tree.generator = object : TreeNodeGenerator<DataSource<String>> {
             override suspend fun fetchChildData(targetNode: TreeNode<DataSource<String>>): Set<DataSource<String>> {
                 if (isSlow) {
-                    delay(5000L)
+                    delay(2000L)
                 }
                 return oldGenerator.fetchChildData(targetNode)
             }
