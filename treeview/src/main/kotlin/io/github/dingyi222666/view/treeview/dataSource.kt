@@ -232,9 +232,7 @@ class DataSourceNodeGenerator<T : Any>(
         tree: AbstractTree<DataSource<T>>
     ): Boolean {
 
-        println("moveNode: ${srcNode.path} -> ${targetNode.path}")
-
-        if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
+        if (targetNode.path.startsWith(srcNode.path)) {
             return false
         }
 
@@ -377,4 +375,3 @@ fun <T : Any> buildTree(
     return tree
 
 }
-

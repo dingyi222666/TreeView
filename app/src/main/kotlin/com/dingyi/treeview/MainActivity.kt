@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
             this.tree = tree
             binder = ViewBinder()
             nodeEventListener = binder as ViewBinder
-            selectionMode = TreeView.SelectionMode.MULTIPLE
+            selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
         }
 
         lifecycleScope.launch {
@@ -69,12 +69,6 @@ class MainActivity : AppCompatActivity() {
             //  binding.treeview.expandUntil(1,true)
             //  binding.treeview.expandAll(true)
         }
-
-        Toast.makeText(
-            this,
-            "If you want to select or deselect node, try to long click on it",
-            Toast.LENGTH_LONG
-        ).show()
 
     }
 
@@ -347,7 +341,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onMovedView(
-            srcNode: TreeNode<DataSource<String>>,
+            srcNode: TreeNode<DataSource<String>>?,
             targetNode: TreeNode<DataSource<String>>?,
             holder: RecyclerView.ViewHolder
         ) {

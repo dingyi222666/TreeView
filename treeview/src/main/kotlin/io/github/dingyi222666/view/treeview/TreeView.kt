@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import java.util.Collections
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.properties.Delegates
 
 /**
@@ -497,20 +498,77 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             viewHolder: RecyclerView.ViewHolder,
             target: RecyclerView.ViewHolder
         ): Boolean {
+            val tree = this@TreeView.tree
             val srcNode = this@TreeView._adapter.getItem(viewHolder.adapterPosition)
-            // look up?
-            var targetNode = this@TreeView._adapter.getItem(max(0, target.adapterPosition - 1))
+            var targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
+            var lastTargetNode = this@TreeView._adapter.getItem(max(target.adapterPosition - 1, 0))
 
-            if (targetNode.depth == 0) {
-                targetNode = tree.getParentNode(targetNode) ?: targetNode
+
+            // down
+            if (lastTargetNode == srcNode) {
+                lastTargetNode = targetNode
+                targetNode = this@TreeView._adapter.getItem(
+                    min(
+                        target.adapterPosition + 1,
+                        this@TreeView._adapter.itemCount - 1
+                    )
+                )
             }
 
-            if (srcNode.path == targetNode.path) {
-                targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
+            if (lastTargetNode.depth == targetNode.depth && tree.getParentNode(lastTargetNode) == tree.getParentNode(
+                    targetNode
+                )
+            ) {
+                /**
+                 * -> a
+                 *    b (target)
+                 *    c
+                 */
+                targetNode = tree.getParentNode(targetNode) ?: targetNode
+            } else if (targetNode.isChild && !targetNode.expand) {
+                /**
+                 *  -> a
+                 *     b (target)
+                 *     c -> d (no expand)
+                 */
+                targetNode = tree.getParentNode(targetNode) ?: targetNode
+            } else if (lastTargetNode.depth < targetNode.depth && lastTargetNode.expand) {
+                /**
+                 * -> a
+                 *    b (target)
+                 *    c -> d
+                 */
+                targetNode = lastTargetNode
+            } else if (lastTargetNode.depth > targetNode.depth) {
+                /**
+                 * -> a
+                 *    b
+                 *    c (target)
+                 * -> d
+                 *    g
+                 *    e ->
+                 *        f
+                 */
+                var parentLastTargetNode = tree.getParentNode(lastTargetNode) ?: lastTargetNode
+
+                while (parentLastTargetNode.depth > targetNode.depth) {
+                    val parent = tree.getParentNode(parentLastTargetNode) ?: break
+                    parentLastTargetNode = parent
+                }
+
+                val parentLastTargetNodeOfNull = tree.getParentNode(parentLastTargetNode)
+                val parentTargetNode = tree.getParentNode(targetNode)
+
+                if (parentLastTargetNodeOfNull != null && parentTargetNode != null &&
+                    parentLastTargetNodeOfNull.expand && parentLastTargetNodeOfNull == parentTargetNode
+                ) {
+
+                    targetNode = parentLastTargetNodeOfNull
+                }
             }
 
             if (originNode == null) {
-                originNode = srcNode
+                originNode = srcNode.copy()
             }
 
             val canMove = binder.onMoveView(viewHolder, srcNode, target, targetNode)
@@ -521,7 +579,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
                 return false
             }
 
-            return this@TreeView._adapter.onMoveHolder(viewHolder, target)
+            return this@TreeView._adapter.onMoveHolder(srcNode, targetNode, viewHolder, target)
         }
 
         override fun isItemViewSwipeEnabled(): Boolean = false
@@ -537,11 +595,10 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             val srcNode = this@TreeView._adapter.getItem(viewHolder.adapterPosition)
             when (actionState) {
                 ItemTouchHelper.ACTION_STATE_DRAG -> {
+                    if (originNode == null) {
+                        originNode = srcNode.copy()
+                    }
                     binder.onMoveView(viewHolder, srcNode)
-                }
-
-                ItemTouchHelper.ACTION_STATE_IDLE -> {
-                    binder.onMovedView(srcNode, null, viewHolder)
                 }
             }
         }
@@ -552,7 +609,17 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
         override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
             super.clearView(recyclerView, viewHolder)
+
+            if (tempMoveNodes == null) {
+                this@TreeView.binder.onMovedView(
+                    null, null, viewHolder
+                )
+                return
+            }
+
             val (left, right) = tempMoveNodes ?: return
+
+            val copyOfOriginNode = originNode
 
             this@TreeView.coroutineScope.launch(Dispatchers.Main) {
                 this@TreeView.binder.onMovedView(
@@ -560,14 +627,16 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
                     right,
                     viewHolder
                 )
-                left.depth = originNode?.depth ?: left.depth
+                left.depth = copyOfOriginNode?.depth ?: left.depth
                 this@TreeView.tree.moveNode(left, right)
                 this@TreeView.refresh(false)
             }
 
             tempMoveNodes = null
             originNode = null
+
         }
+
     }
 
 
@@ -670,28 +739,19 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
         // Only move in cache, not in tree
         fun onMoveHolder(
+            srcNode: TreeNode<T>,
+            targetNode: TreeNode<T>,
             viewHolder: RecyclerView.ViewHolder,
             target: RecyclerView.ViewHolder
         ): Boolean {
-            val srcNode = getItem(viewHolder.adapterPosition)
-            var targetNode = getItem(max(0, target.adapterPosition - 1))
-
-            if (targetNode.depth == 0) {
-                targetNode = tree.getParentNode(targetNode) ?: targetNode
-            }
-
-            if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
-                return false
-            }
-
-            if (srcNode.path == targetNode.path) {
-                targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
-            }
-
             srcNode.depth = if (targetNode.isChild) {
                 targetNode.depth + 1
             } else {
                 targetNode.depth
+            }
+
+            if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
+                return false
             }
 
             val currentList = currentList.toMutableList()
@@ -736,7 +796,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         /**
          * Multiple selection mode with children
          *
-         *  Multiple nodes can be selected, and the children of the selected node will also be selected
+         * Multiple nodes can be selected, and the children of the selected node will also be selected
          */
         MULTIPLE_WITH_CHILDREN,
     }
@@ -803,14 +863,12 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
      * Called when the view is released after dragging.
      *
      * You can override this method to do some operations on the view, such as set background color, etc.
-     *
-     * And you need to call [AbstractTree.moveNode], otherwise the node will not be moved.
-     *
+     **
      *
      * @see [ItemTouchHelper.Callback.clearView]
      */
     open fun onMovedView(
-        srcNode: TreeNode<T>,
+        srcNode: TreeNode<T>? = null,
         targetNode: TreeNode<T>? = null,
         holder: RecyclerView.ViewHolder
     ) {
@@ -849,7 +907,8 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
         oldItem: TreeNode<T>,
         newItem: TreeNode<T>
     ): Boolean {
-        val isSame = oldItem.id == newItem.id && oldItem == newItem && oldItem.data == newItem.data
+        val isSame =
+            oldItem.id == newItem.id && oldItem == newItem && oldItem.data == newItem.data
         if (!isSame) {
             return false
         }

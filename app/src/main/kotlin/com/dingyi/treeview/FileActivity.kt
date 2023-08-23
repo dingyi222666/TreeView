@@ -72,7 +72,7 @@ class FileActivity : AppCompatActivity() {
             this.tree = this@FileActivity.tree
             binder = FileViewBinder()
             nodeEventListener = binder as FileViewBinder
-            selectionMode = TreeView.SelectionMode.MULTIPLE
+            selectionMode = TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
         }
 
         lifecycleScope.launch {
@@ -190,96 +190,98 @@ class FileActivity : AppCompatActivity() {
     }
 
 
-}
+    inner class FileViewBinder : TreeViewBinder<File>(),
+        TreeNodeEventListener<File> {
 
-
-class FileViewBinder : TreeViewBinder<File>(),
-    TreeNodeEventListener<File> {
-
-    override fun createView(parent: ViewGroup, viewType: Int): View {
-        val layoutInflater = LayoutInflater.from(parent.context)
-        return if (viewType == 1) {
-            ItemDirBinding.inflate(layoutInflater, parent, false).root
-        } else {
-            ItemFileBinding.inflate(layoutInflater, parent, false).root
+        override fun createView(parent: ViewGroup, viewType: Int): View {
+            val layoutInflater = LayoutInflater.from(parent.context)
+            return if (viewType == 1) {
+                ItemDirBinding.inflate(layoutInflater, parent, false).root
+            } else {
+                ItemFileBinding.inflate(layoutInflater, parent, false).root
+            }
         }
-    }
 
-    override fun getItemViewType(node: TreeNode<File>): Int {
-        if (node.isChild) {
-            return 1
+        override fun getItemViewType(node: TreeNode<File>): Int {
+            if (node.isChild) {
+                return 1
+            }
+            return 0
         }
-        return 0
-    }
 
-    override fun bindView(
-        holder: TreeView.ViewHolder,
-        node: TreeNode<File>,
-        listener: TreeNodeEventListener<File>
-    ) {
-        if (node.isChild) {
+        override fun bindView(
+            holder: TreeView.ViewHolder,
+            node: TreeNode<File>,
+            listener: TreeNodeEventListener<File>
+        ) {
+            if (node.isChild) {
+                applyDir(holder, node)
+            } else {
+                applyFile(holder, node)
+            }
+
+            val itemView = holder.itemView.findViewById<Space>(R.id.space)
+
+            itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = node.depth * 22.dp
+            }
+
+            (getCheckableView(node, holder) as MaterialCheckBox).apply {
+                isVisible = node.selected
+                isSelected = node.selected
+            }
+        }
+
+        private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<File>) {
+            val binding = ItemFileBinding.bind(holder.itemView)
+            binding.tvName.text = node.name.toString()
+
+        }
+
+        private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<File>) {
+            val binding = ItemDirBinding.bind(holder.itemView)
+            binding.tvName.text = node.name.toString()
+
+            binding
+                .ivArrow
+                .animate()
+                .rotation(if (node.expand) 90f else 0f)
+                .setDuration(200)
+                .start()
+
+        }
+
+        override fun getCheckableView(
+            node: TreeNode<File>,
+            holder: TreeView.ViewHolder
+        ): Checkable {
+            return if (node.isChild) {
+                ItemDirBinding.bind(holder.itemView).checkbox
+            } else {
+                ItemFileBinding.bind(holder.itemView).checkbox
+            }
+        }
+
+        override fun onClick(node: TreeNode<File>, holder: TreeView.ViewHolder) {
+            if (node.isChild) {
+                applyDir(holder, node)
+            } else {
+                Toast.makeText(holder.itemView.context, "Clicked ${node.name}", Toast.LENGTH_LONG)
+                    .show()
+            }
+        }
+
+        override fun onRefresh(status: Boolean) {
+            binding.progress.isVisible = status
+        }
+
+        override fun onToggle(
+            node: TreeNode<File>,
+            isExpand: Boolean,
+            holder: TreeView.ViewHolder
+        ) {
             applyDir(holder, node)
-        } else {
-            applyFile(holder, node)
         }
-
-        val itemView = holder.itemView.findViewById<Space>(R.id.space)
-
-        itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = node.depth * 22.dp
-        }
-
-        (getCheckableView(node, holder) as MaterialCheckBox).apply {
-            isVisible = node.selected
-            isSelected = node.selected
-        }
-    }
-
-    private fun applyFile(holder: TreeView.ViewHolder, node: TreeNode<File>) {
-        val binding = ItemFileBinding.bind(holder.itemView)
-        binding.tvName.text = node.name.toString()
-
-    }
-
-    private fun applyDir(holder: TreeView.ViewHolder, node: TreeNode<File>) {
-        val binding = ItemDirBinding.bind(holder.itemView)
-        binding.tvName.text = node.name.toString()
-
-        binding
-            .ivArrow
-            .animate()
-            .rotation(if (node.expand) 90f else 0f)
-            .setDuration(200)
-            .start()
-
-    }
-
-    override fun getCheckableView(
-        node: TreeNode<File>,
-        holder: TreeView.ViewHolder
-    ): Checkable {
-        return if (node.isChild) {
-            ItemDirBinding.bind(holder.itemView).checkbox
-        } else {
-            ItemFileBinding.bind(holder.itemView).checkbox
-        }
-    }
-
-    override fun onClick(node: TreeNode<File>, holder: TreeView.ViewHolder) {
-        if (node.isChild) {
-            applyDir(holder, node)
-        } else {
-            Toast.makeText(holder.itemView.context, "Clicked ${node.name}", Toast.LENGTH_LONG)
-                .show()
-        }
-    }
-
-    override fun onToggle(
-        node: TreeNode<File>,
-        isExpand: Boolean,
-        holder: TreeView.ViewHolder
-    ) {
-        applyDir(holder, node)
     }
 }
 
@@ -332,7 +334,6 @@ class FileNodeGenerator(
 class FileListLoader {
 
     private val cacheFiles = mutableMapOf<String, MutableList<File>>()
-
 
     private fun getFileList(file: File): List<File> {
         return (file.listFiles() ?: emptyArray()).run {
