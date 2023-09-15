@@ -149,11 +149,14 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      *
      * @param [fastRefresh] Whether to quick refresh or not.
      * @param [node] The node to be refreshed; if the value is not null, only the child nodes under the node will be refreshed.
+     * @param [withExpandable] Whether to refresh only the expanded nodes. If true, only the expanded nodes will be refreshed, otherwise a full refresh will be performed. The default value is false
      *
      * If ture, only data from the cache will be fetched instead of calling the [TreeNodeGenerator]
      * @see [AbstractTree.toSortedList]
      */
-    suspend fun refresh(fastRefresh: Boolean = false, node: TreeNode<T>? = null) {
+    suspend fun refresh(
+        fastRefresh: Boolean = false, node: TreeNode<T>? = null, withExpandable: Boolean = false
+    ) {
         if (!this::_adapter.isInitialized) {
             initAdapter()
         }
@@ -163,7 +166,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         var fastRefreshOnLocal = fastRefresh
 
         if (node != null) {
-            tree.refreshWithChild(node, withExpandable = true)
+            tree.refreshWithChild(node, withExpandable)
             fastRefreshOnLocal = true
         }
 
@@ -428,7 +431,6 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             return false
         }
 
-        // node.selected = !node.selected
         selectNode(node, !node.selected)
 
         return true
