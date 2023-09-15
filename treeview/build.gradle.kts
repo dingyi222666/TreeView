@@ -42,7 +42,7 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates("io.github.dingyi222666", "treeview", "1.3.0")
+    coordinates("io.github.dingyi222666", "treeview", "1.3.1")
 
     pom {
         name.set("TreeView")
@@ -74,7 +74,7 @@ mavenPublishing {
 
 
 dependencies {
-    compileOnly("androidx.core:core-ktx:1.10.1")
+    compileOnly("androidx.core:core-ktx:1.12.0")
     compileOnly("androidx.appcompat:appcompat:1.6.1")
     compileOnly("com.google.android.material:material:1.9.0")
 }
