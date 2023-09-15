@@ -93,7 +93,8 @@ class MainActivity : AppCompatActivity() {
             isChecked = isSlow
         }
         menu.findItem(R.id.selected_group).apply {
-            isEnabled = binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+            isEnabled =
+                binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
         }
         return super.onPrepareOptionsMenu(menu)
     }
@@ -124,15 +125,15 @@ class MainActivity : AppCompatActivity() {
 
                 R.id.select_mode -> {
                     binding.treeview.selectionMode =
-                        if (binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN) {
+                        if (binding.treeview.selectionMode == TreeView.SelectionMode.SINGLE) {
                             deselectAllNode()
                             TreeView.SelectionMode.NONE
                         } else {
-                            TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                            TreeView.SelectionMode.SINGLE
                         }
 
                     item.isChecked =
-                        binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                        binding.treeview.selectionMode == TreeView.SelectionMode.SINGLE
                 }
 
                 R.id.slow_mode -> {

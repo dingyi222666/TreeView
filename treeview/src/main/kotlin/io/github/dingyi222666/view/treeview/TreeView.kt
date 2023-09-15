@@ -319,6 +319,11 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [selected] Whether to select the node
      */
     suspend fun selectNode(node: TreeNode<T>, selected: Boolean) {
+        val oldSelectedNode = tree.getSelectedNodes().getOrNull(0)
+        if (selectionMode == SelectionMode.SINGLE && oldSelectedNode != null && oldSelectedNode.path != node.path) {
+            tree
+                .selectNode(oldSelectedNode, false, selectChild = false)
+        }
         tree.selectNode(node, selected, selectionMode == SelectionMode.MULTIPLE_WITH_CHILDREN)
         refresh(true, node)
     }
@@ -411,28 +416,20 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     }
 
 
-    private fun checkCanSelect(node: TreeNode<T>): Boolean {
+    private fun checkCanSelect(): Boolean {
         return when (selectionMode) {
             SelectionMode.NONE -> false
-            SelectionMode.SINGLE -> {
-                tree.getSelectedNodes().let { selectedNodes ->
-                    selectedNodes.isEmpty() || selectedNodes.find {
-                        it == node || node.path == it.path
-                    } != null
-                }
-            }
-
-            SelectionMode.MULTIPLE, SelectionMode.MULTIPLE_WITH_CHILDREN -> true
+            SelectionMode.SINGLE, SelectionMode.MULTIPLE, SelectionMode.MULTIPLE_WITH_CHILDREN -> true
         }
     }
 
-    private suspend fun trySelect(node: TreeNode<T>, holder: ViewHolder): Boolean {
-        if (!checkCanSelect(node)) {
+    private suspend fun trySelect(node: TreeNode<T>): Boolean {
+        if (!checkCanSelect()) {
             return false
         }
 
         // node.selected = !node.selected
-        tree.selectNode(node, !node.selected, selectionMode == SelectionMode.MULTIPLE_WITH_CHILDREN)
+        selectNode(node, !node.selected)
 
         return true
     }
@@ -472,7 +469,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     override fun onLongClick(node: TreeNode<T>, holder: ViewHolder): Boolean {
         val clickResult = nodeEventListener.onLongClick(node, holder)
         coroutineScope.launch(Dispatchers.Main) {
-            val supportChangeSelectStatus = trySelect(node, holder)
+            val supportChangeSelectStatus = trySelect(node)
             if (supportChangeSelectStatus) {
                 defaultRefresh(true, node)
             }
