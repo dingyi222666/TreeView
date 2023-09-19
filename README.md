@@ -31,7 +31,7 @@ An TreeView implement in Android with RecyclerView written in kotlin.
 - Add the dependency to your gradle file
 
 ```groovy
-implementation("io.github.dingyi222666:treeview:1.3.0")
+implementation("io.github.dingyi222666:treeview:1.3.1")
 ```
 
 - Use the `DataSource` DSL to create tree used for the TreeView. Also you can [use the `TreeNodeGenerator`](https://github.com/dingyi222666/TreeView/issues/4) to create the tree.
