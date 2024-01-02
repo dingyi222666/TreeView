@@ -1,5 +1,7 @@
 ## TreeView
 
+## Maintainers Needed！See [#12](https://github.com/dingyi222666/TreeView/issues/12) for more details.
+
 An TreeView implement in Android with RecyclerView written in kotlin.
 
 [![CI Build Status](https://github.com/dingyi222666/TreeView/actions/workflows/android.yml/badge.svg)](https://github.com/dingyi222666/TreeView/tree/main/.github/workflows/android.yml)
