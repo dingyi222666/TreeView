@@ -172,7 +172,7 @@ lifecycleScope.launch {
 ```
 
 - If you want to load dynamic data (etc. local file), you can see this example
-  [here](./app/src/main/java/com/dingyi/treeview/FileActivity.kt)
+  [here](./app/src/main/kotlin/com/dingyi/treeview/FileActivity.kt)
 
 
 - Done! Enjoy using it.
