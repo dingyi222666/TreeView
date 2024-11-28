@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.drag_node).apply {
             isChecked = binding.treeview.supportDragging
             isEnabled =
-                binding.treeview.selectionMode != TreeView.SelectionMode.NONE
+                binding.treeview.selectionMode == TreeView.SelectionMode.NONE
         }
         menu.findItem(R.id.select_mode).apply {
             isChecked =
