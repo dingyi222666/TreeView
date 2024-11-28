@@ -70,15 +70,14 @@ open class TreeNode<T : Any>(
      * The TreeView checks this value when displaying the list of nodes and decides whether or not to display the child nodes under the node
      */
     var expand: Boolean = true,
-) {
-
 
     /**
      * Whether the node is selected or not.
      * The [TreeView] use this to display the selected state of the node on the view.
      */
     var selected: Boolean = false
-        internal set
+) {
+
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
