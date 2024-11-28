@@ -501,7 +501,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             return
         }
         coroutineScope.launch {
-            if (old !== SelectionMode.NONE) {
+            if (new == SelectionMode.SINGLE || new == SelectionMode.NONE) {
                 tree.selectAllNode(false)
             }
             refresh(true)
