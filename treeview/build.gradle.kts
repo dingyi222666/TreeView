@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "io.github.dingyi222666.view.treeview"
-    compileSdk = 33
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 21
@@ -74,7 +74,7 @@ mavenPublishing {
 
 
 dependencies {
-    compileOnly("androidx.core:core-ktx:1.12.0")
-    compileOnly("androidx.appcompat:appcompat:1.6.1")
-    compileOnly("com.google.android.material:material:1.9.0")
+    compileOnly("androidx.core:core-ktx:1.15.0")
+    compileOnly("androidx.appcompat:appcompat:1.7.0")
+    compileOnly("com.google.android.material:material:1.12.0")
 }
