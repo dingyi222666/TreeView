@@ -15,9 +15,13 @@ import android.view.ViewGroup
 import android.widget.Checkable
 import android.widget.Space
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
@@ -49,9 +53,19 @@ class FileActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        enableEdgeToEdge()
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         fileListLoader = FileListLoader()
         setContentView(binding.root)
+
+        setSupportActionBar(binding.toolbar)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.treeview) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(bottom = insets.bottom)
+            windowInsets
+        }
 
         requestStoragePermission()
 
@@ -226,7 +240,7 @@ class FileActivity : AppCompatActivity() {
                 width = node.depth * 22.dp
             }
 
-            (getCheckableView(node, holder) as MaterialCheckBox).apply {
+            (getCheckableView(node, holder)).apply {
                 isVisible = node.selected
                 isSelected = node.selected
             }
@@ -254,7 +268,7 @@ class FileActivity : AppCompatActivity() {
         override fun getCheckableView(
             node: TreeNode<File>,
             holder: TreeView.ViewHolder
-        ): Checkable {
+        ): MaterialCheckBox {
             return if (node.isChild) {
                 ItemDirBinding.bind(holder.itemView).checkbox
             } else {
@@ -263,12 +277,8 @@ class FileActivity : AppCompatActivity() {
         }
 
         override fun onClick(node: TreeNode<File>, holder: TreeView.ViewHolder) {
-            if (node.isChild) {
-                applyDir(holder, node)
-            } else {
-                Toast.makeText(holder.itemView.context, "Clicked ${node.name}", Toast.LENGTH_LONG)
-                    .show()
-            }
+            Toast.makeText(holder.itemView.context, "Clicked ${node.name}", Toast.LENGTH_LONG)
+                .show()
         }
 
         override fun onRefresh(status: Boolean) {
