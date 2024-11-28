@@ -48,11 +48,13 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     )
 
     private var horizontalOffset = 0f
-    private var maxChildWidth = 0f
+    private var maxChildWidth = 0
     private var pointerId = 0
     private var pointerLastX = 0f
     private var slopExceeded = false
-    private val maxHorizontalOffset
+    private var needsWidthRefresh = true
+
+    private val maxHorizontalOffset: Float
         get() = (maxChildWidth - width * 0.75f).coerceAtLeast(0f)
 
     /**
@@ -140,11 +142,21 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     private var initialTouchY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
+    private val scrollListener = object : OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            if (supportHorizontalScroll) {
+                recalculateMaxWidth()
+            }
+        }
+    }
+
     init {
         this._itemTouchHelperCallback = ItemTouchHelperCallback()
 
         val itemTouchHelper = ItemTouchHelper(_itemTouchHelperCallback)
         itemTouchHelper.attachToRecyclerView(this)
+
+        addOnScrollListener(scrollListener)
     }
 
     /**
@@ -365,17 +377,9 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
-        if (supportHorizontalScroll) {
-            // Fetch children sizes and update max size of children
-            var maxWidth = 0
-            for (i in 0 until childCount) {
-                maxWidth = maxWidth.coerceAtLeast(
-                    getChildAt(i).getTag(R.id.tag_measured_width) as Int? ?: 0
-                )
-            }
-            maxChildWidth = maxWidth.toFloat()
-        } else {
-            maxChildWidth = 0f
+        if (supportHorizontalScroll && (changed || needsWidthRefresh)) {
+            recalculateMaxWidth()
+            needsWidthRefresh = false
         }
     }
 
@@ -814,32 +818,45 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
             if (supportHorizontalScroll) {
                 holder.itemView.apply {
-                    // Get child's preferred size
+                    // First measure with wrap content to get actual content width
                     updateLayoutParams<ViewGroup.LayoutParams> {
                         width = LayoutParams.WRAP_CONTENT
                         height = LayoutParams.WRAP_CONTENT
                     }
+
                     measure(
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
                     )
-                    // Apply a large width and measured height
-                    updateLayoutParams<ViewGroup.LayoutParams> {
-                        width = 1000000
-                        height = holder.itemView.measuredHeight
 
+                    val measuredWidth = measuredWidth
+                    
+                    // Set width to a large value to ensure item fills available space
+                    updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = 1000000 // Use large fixed width
+                        height = measuredHeight
                     }
-                    // Save current measured width for later usage
-                    setTag(
-                        R.id.tag_measured_width,
-                        holder.itemView.measuredWidth
-                    )
+
+                    // Update max width if needed
+                    if (measuredWidth > maxChildWidth) {
+                        maxChildWidth = measuredWidth
+                        needsWidthRefresh = true
+                        post { requestLayout() }
+                    }
                 }
             } else {
                 holder.itemView.updateLayoutParams<ViewGroup.LayoutParams> {
                     width = LayoutParams.MATCH_PARENT
                     height = LayoutParams.WRAP_CONTENT
                 }
+            }
+        }
+
+        override fun onViewAttachedToWindow(holder: ViewHolder) {
+            super.onViewAttachedToWindow(holder)
+            if (supportHorizontalScroll) {
+                needsWidthRefresh = true
+                holder.itemView.post { requestLayout() }
             }
         }
 
@@ -931,6 +948,29 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
          * Multiple nodes can be selected, and the children of the selected node will also be selected
          */
         MULTIPLE_WITH_CHILDREN,
+    }
+
+    private fun recalculateMaxWidth() {
+        if (!supportHorizontalScroll) {
+            maxChildWidth = 0
+            return
+        }
+
+        var maxWidth = 0
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            val holder = getChildViewHolder(child) as? ViewHolder ?: continue
+            val position = holder.adapterPosition
+            if (position == NO_POSITION) continue
+
+            // Get the measured width including padding and margins
+            val itemWidth = child.measuredWidth + child.paddingLeft + child.paddingRight
+            maxWidth = maxWidth.coerceAtLeast(itemWidth)
+        }
+
+        if (maxWidth > 0) {
+            maxChildWidth = maxWidth
+        }
     }
 }
 
