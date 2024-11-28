@@ -42,7 +42,7 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates("io.github.dingyi222666", "treeview", "1.3.1")
+    coordinates("io.github.dingyi222666", "treeview", "1.3.2")
 
     pom {
         name.set("TreeView")
