@@ -16,6 +16,10 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import androidx.activity.enableEdgeToEdge
 import com.dingyi.treeview.databinding.ActivityMainBinding
 import com.dingyi.treeview.databinding.ItemDirBinding
 import com.dingyi.treeview.databinding.ItemFileBinding
@@ -48,9 +52,18 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        enableEdgeToEdge()
 
+        binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        setSupportActionBar(binding.toolbar)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.treeview) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(bottom = insets.bottom)
+            windowInsets
+        }
 
         val tree = createTree()
         this.tree = tree
@@ -79,14 +92,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        println("prepare menu $menu")
         menu.findItem(R.id.drag_node).apply {
             isChecked = binding.treeview.supportDragging
             isEnabled =
-                binding.treeview.selectionMode != TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                binding.treeview.selectionMode != TreeView.SelectionMode.NONE
         }
         menu.findItem(R.id.select_mode).apply {
             isChecked =
-                binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                binding.treeview.selectionMode != TreeView.SelectionMode.NONE
             isEnabled = !binding.treeview.supportDragging
         }
         menu.findItem(R.id.slow_mode).apply {
@@ -94,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         }
         menu.findItem(R.id.selected_group).apply {
             isEnabled =
-                binding.treeview.selectionMode == TreeView.SelectionMode.MULTIPLE_WITH_CHILDREN
+                binding.treeview.selectionMode != TreeView.SelectionMode.NONE
         }
         return super.onPrepareOptionsMenu(menu)
     }
@@ -306,7 +320,7 @@ class MainActivity : AppCompatActivity() {
 
             applyDepth(holder, node)
 
-            (getCheckableView(node, holder) as MaterialCheckBox).apply {
+            getCheckableView(node, holder).apply {
                 isVisible = node.selected
                 isSelected = node.selected
             }
@@ -342,7 +356,7 @@ class MainActivity : AppCompatActivity() {
         override fun getCheckableView(
             node: TreeNode<DataSource<String>>,
             holder: TreeView.ViewHolder
-        ): Checkable {
+        ): MaterialCheckBox {
             return if (node.isChild) {
                 ItemDirBinding.bind(holder.itemView).checkbox
             } else {
@@ -351,11 +365,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onClick(node: TreeNode<DataSource<String>>, holder: TreeView.ViewHolder) {
-            if (node.isChild) {
-                applyDir(holder, node)
-            } else {
-                Toast.makeText(this@MainActivity, "Clicked ${node.name}", Toast.LENGTH_LONG).show()
-            }
+            Toast.makeText(this@MainActivity, "Clicked ${node.name}", Toast.LENGTH_LONG).show()
         }
 
         override fun onMoveView(
