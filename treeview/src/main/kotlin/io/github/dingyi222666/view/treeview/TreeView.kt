@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Collections
 import java.util.concurrent.CopyOnWriteArrayList
@@ -164,7 +165,8 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
      * @param [node] The node to be refreshed; if the value is not null, only the child nodes under the node will be refreshed.
      * @param [withExpandable] Whether to refresh only the expanded nodes. If true, only the expanded nodes will be refreshed, otherwise a full refresh will be performed. The default value is false
      *
-     * If ture, only data from the cache will be fetched instead of calling the [TreeNodeGenerator]
+     * If true, only data from the cache will be fetched instead of calling the [TreeNodeGenerator]
+     *
      * @see [AbstractTree.toSortedList]
      */
     suspend fun refresh(
@@ -507,9 +509,10 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     ) : RecyclerView.ViewHolder(rootView)
 
     private inner class ItemTouchHelperCallback : ItemTouchHelper.Callback() {
-
         private var tempMoveNodes: Pair<TreeNode<T>, TreeNode<T>>? = null
         private var originNode: TreeNode<T>? = null
+        private var lastExpandNode: TreeNode<T>? = null
+        private var expandNodeDelay = 200L
 
         override fun getMovementFlags(
             recyclerView: RecyclerView,
@@ -519,6 +522,67 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
                 if (supportDragging) ItemTouchHelper.UP or ItemTouchHelper.DOWN else 0,
                 0
             )
+        }
+
+        // Called when hovering over a position
+        override fun isLongPressDragEnabled(): Boolean = supportDragging
+
+        // Check if we should expand the target directory node
+        private fun checkExpandNode(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder,
+            dX: Float,
+            dY: Float
+        ) {
+            val targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
+            
+            // Only handle directory nodes that are not expanded
+            if (!targetNode.isChild || targetNode.expand) {
+                lastExpandNode = null
+                return
+            }
+
+            // Check if the dragged view overlaps with the target view
+            val draggedView = viewHolder.itemView
+            val targetView = target.itemView
+            
+            val draggedRect = draggedView.run {
+                val location = IntArray(2)
+                getLocationOnScreen(location)
+                android.graphics.Rect(
+                    location[0],
+                    location[1],
+                    location[0] + width,
+                    location[1] + height
+                )
+            }
+
+            val targetRect = targetView.run {
+                val location = IntArray(2)
+                getLocationOnScreen(location)
+                android.graphics.Rect(
+                    location[0],
+                    location[1],
+                    location[0] + width,
+                    location[1] + height
+                )
+            }
+
+            // If views overlap and this is a new target node
+            if (draggedRect.intersect(targetRect) && lastExpandNode != targetNode) {
+                lastExpandNode = targetNode
+                
+                // Expand the node after a delay
+                coroutineScope.launch {
+                    delay(expandNodeDelay)
+                    // Check if we're still hovering over the same node
+                    if (lastExpandNode == targetNode) {
+                        targetNode.expand = true
+                        refresh(true, targetNode)
+                    }
+                }
+            }
         }
 
         override fun onMove(
@@ -531,95 +595,84 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
             var targetNode = this@TreeView._adapter.getItem(target.adapterPosition)
             var lastTargetNode = this@TreeView._adapter.getItem(max(target.adapterPosition - 1, 0))
 
-
-            // down
-            if (lastTargetNode == srcNode) {
-                lastTargetNode = targetNode
-                targetNode = this@TreeView._adapter.getItem(
-                    min(
-                        target.adapterPosition + 1,
-                        this@TreeView._adapter.itemCount - 1
-                    )
-                )
-            }
-
-            if (lastTargetNode.depth == targetNode.depth && tree.getParentNode(lastTargetNode) == tree.getParentNode(
-                    targetNode
-                )
-            ) {
-                /**
-                 * -> a
-                 *    b (target)
-                 *    c
-                 */
-                targetNode = tree.getParentNode(targetNode) ?: targetNode
-            } else if (targetNode.isChild && !targetNode.expand) {
-                /**
-                 *  -> a
-                 *     b (target)
-                 *     c -> d (no expand)
-                 */
-                targetNode = tree.getParentNode(targetNode) ?: targetNode
-            } else if (lastTargetNode.depth < targetNode.depth && lastTargetNode.expand) {
-                /**
-                 * -> a
-                 *    b (target)
-                 *    c -> d
-                 */
-                targetNode = lastTargetNode
-            } else if (lastTargetNode.depth > targetNode.depth) {
-                /**
-                 * -> a
-                 *    b
-                 *    c (target)
-                 * -> d
-                 *    g
-                 *    e ->
-                 *        f
-                 */
-                var parentLastTargetNode = tree.getParentNode(lastTargetNode) ?: lastTargetNode
-
-                while (parentLastTargetNode.depth > targetNode.depth) {
-                    val parent = tree.getParentNode(parentLastTargetNode) ?: break
-                    parentLastTargetNode = parent
-                }
-
-                val parentLastTargetNodeOfNull = tree.getParentNode(parentLastTargetNode)
-                val parentTargetNode = tree.getParentNode(targetNode)
-
-                if (parentLastTargetNodeOfNull != null && parentTargetNode != null &&
-                    parentLastTargetNodeOfNull.expand && parentLastTargetNodeOfNull == parentTargetNode
-                ) {
-
-                    targetNode = parentLastTargetNodeOfNull
-                }
-            }
-
             if (originNode == null) {
                 originNode = srcNode.copy()
             }
 
-            val canMove = binder.onMoveView(viewHolder, srcNode, target, targetNode)
+            // Handle moving down case
+            if (lastTargetNode == srcNode) {
+                lastTargetNode = targetNode
+                targetNode = this@TreeView._adapter.getItem(
+                    min(target.adapterPosition + 1, this@TreeView._adapter.itemCount - 1)
+                )
+            }
 
-            tempMoveNodes = Pair(srcNode, targetNode)
+            // Determine the actual target node based on tree structure
+            targetNode = determineTargetNode(tree, lastTargetNode, targetNode)
 
-            if (!canMove) {
+            if (targetNode.path.startsWith(srcNode.path) && srcNode.depth < targetNode.depth) {
                 return false
             }
 
+            val canMove = binder.onMoveView(viewHolder, srcNode, target, targetNode)
+            if (!canMove) return false
+
+            tempMoveNodes = Pair(srcNode, targetNode)
             return this@TreeView._adapter.onMoveHolder(srcNode, targetNode, viewHolder, target)
+        }
+
+        // Called continuously during drag
+        override fun onChildDraw(
+            c: Canvas,
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            dX: Float,
+            dY: Float,
+            actionState: Int,
+            isCurrentlyActive: Boolean
+        ) {
+            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+
+            if (actionState != ItemTouchHelper.ACTION_STATE_DRAG) return
+
+            // Find the view we're hovering over
+            val targetView = recyclerView.findChildViewUnder(
+                viewHolder.itemView.x + dX,
+                viewHolder.itemView.y + dY
+            ) ?: return
+
+            val target = recyclerView.getChildViewHolder(targetView)
+            checkExpandNode(recyclerView, viewHolder, target, dX, dY)
+        }
+
+        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+            super.clearView(recyclerView, viewHolder)
+
+            if (tempMoveNodes == null) {
+                this@TreeView.binder.onMovedView(null, null, viewHolder)
+                return
+            }
+
+            val (srcNode, targetNode) = tempMoveNodes ?: return
+            val copyOfOriginNode = originNode
+
+            coroutineScope.launch(Dispatchers.Main) {
+                binder.onMovedView(srcNode, targetNode, viewHolder)
+                srcNode.depth = copyOfOriginNode?.depth ?: srcNode.depth
+                tree.moveNode(srcNode, targetNode)
+                refresh(false)
+            }
+
+            tempMoveNodes = null
+            originNode = null
+            lastExpandNode = null 
         }
 
         override fun isItemViewSwipeEnabled(): Boolean = false
 
-        override fun isLongPressDragEnabled(): Boolean {
-            return supportDragging
-        }
-
         override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-            if (viewHolder == null) {
-                return
-            }
+            if (viewHolder == null) return
+            
             val srcNode = this@TreeView._adapter.getItem(viewHolder.adapterPosition)
             when (actionState) {
                 ItemTouchHelper.ACTION_STATE_DRAG -> {
@@ -632,39 +685,63 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         }
 
         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-            // Do nothing
+            // Not implemented
         }
 
-        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-            super.clearView(recyclerView, viewHolder)
-
-            if (tempMoveNodes == null) {
-                this@TreeView.binder.onMovedView(
-                    null, null, viewHolder
-                )
-                return
+         private fun determineTargetNode(
+            tree: Tree<T>,
+            lastTargetNode: TreeNode<T>,
+            targetNode: TreeNode<T>
+        ): TreeNode<T> {
+            // Case 1: Moving between siblings
+            if (lastTargetNode.depth == targetNode.depth && 
+                tree.getParentNode(lastTargetNode) == tree.getParentNode(targetNode)) {
+                return tree.getParentNode(targetNode) ?: targetNode
             }
 
-            val (left, right) = tempMoveNodes ?: return
-
-            val copyOfOriginNode = originNode
-
-            this@TreeView.coroutineScope.launch(Dispatchers.Main) {
-                this@TreeView.binder.onMovedView(
-                    left,
-                    right,
-                    viewHolder
-                )
-                left.depth = copyOfOriginNode?.depth ?: left.depth
-                this@TreeView.tree.moveNode(left, right)
-                this@TreeView.refresh(false)
+            // Case 2: Moving to collapsed directory
+            if (targetNode.isChild && !targetNode.expand) {
+                return tree.getParentNode(targetNode) ?: targetNode
             }
 
-            tempMoveNodes = null
-            originNode = null
+            // Case 3: Moving into expanded directory
+            if (lastTargetNode.depth < targetNode.depth && lastTargetNode.expand) {
+                return lastTargetNode
+            }
 
+            // Case 4: Moving across different depth levels
+            if (lastTargetNode.depth > targetNode.depth) {
+                return handleDifferentDepthMove(tree, lastTargetNode, targetNode)
+            }
+
+            return targetNode
         }
 
+        private fun handleDifferentDepthMove(
+            tree: Tree<T>,
+            lastTargetNode: TreeNode<T>,
+            targetNode: TreeNode<T>
+        ): TreeNode<T> {
+            var parentLastTargetNode = tree.getParentNode(lastTargetNode) ?: lastTargetNode
+
+            // Find common ancestor level
+            while (parentLastTargetNode.depth > targetNode.depth) {
+                val parent = tree.getParentNode(parentLastTargetNode) ?: break
+                parentLastTargetNode = parent
+            }
+
+            val parentLastTargetNodeOfNull = tree.getParentNode(parentLastTargetNode)
+            val parentTargetNode = tree.getParentNode(targetNode)
+
+            // Check if nodes share same expanded parent
+            if (parentLastTargetNodeOfNull != null && parentTargetNode != null &&
+                parentLastTargetNodeOfNull.expand && parentLastTargetNodeOfNull == parentTargetNode
+            ) {
+                return parentLastTargetNodeOfNull
+            }
+
+            return targetNode
+        }
     }
 
 
