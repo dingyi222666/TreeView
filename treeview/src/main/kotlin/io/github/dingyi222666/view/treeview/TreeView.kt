@@ -4,9 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.Checkable
 import androidx.core.view.updateLayoutParams
@@ -52,8 +52,6 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     private var pointerId = 0
     private var pointerLastX = 0f
     private var slopExceeded = false
-    private val horizontalTouchSlop =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics)
     private val maxHorizontalOffset
         get() = (maxChildWidth - width * 0.75f).coerceAtLeast(0f)
 
@@ -136,6 +134,11 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     private val _itemTouchHelperCallback: ItemTouchHelperCallback
 
     private var coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+
+    private var isHorizontalScrolling = false
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     init {
         this._itemTouchHelperCallback = ItemTouchHelperCallback()
@@ -387,42 +390,60 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.pointerCount == 1 && supportHorizontalScroll) {
-            // Check for horizontal scrolling
-            // This should be done with original coordinates
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    // Take down the pointer id
-                    pointerId = ev.getPointerId(0)
-                    pointerLastX = ev.x
-                    slopExceeded = false
-                }
+        if (!supportHorizontalScroll) {
+            return super.dispatchTouchEvent(ev)
+        }
 
-                MotionEvent.ACTION_MOVE -> {
-                    if (ev.getPointerId(ev.actionIndex) == pointerId) {
-                        if (abs(ev.x - pointerLastX) > horizontalTouchSlop) {
-                            slopExceeded = true
-                        }
-                        if (slopExceeded) {
-                            horizontalOffset =
-                                (pointerLastX - ev.x + horizontalOffset).coerceAtLeast(0f)
-                                    .coerceAtMost(maxHorizontalOffset)
-                            pointerLastX = ev.x
-                            invalidate()
-                        }
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                pointerId = ev.getPointerId(0)
+                initialTouchX = ev.x
+                initialTouchY = ev.y
+                pointerLastX = ev.x
+                isHorizontalScrolling = false
+                slopExceeded = false
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (ev.getPointerId(ev.actionIndex) == pointerId) {
+                    val dx = abs(ev.x - initialTouchX)
+                    val dy = abs(ev.y - initialTouchY)
+                    
+                    // Determine if this is a horizontal scroll
+                    if (!isHorizontalScrolling && dx > touchSlop && dx > dy * 2) {
+                        isHorizontalScrolling = true
+                        slopExceeded = true
+                    }
+
+                    if (isHorizontalScrolling) {
+                        horizontalOffset = (pointerLastX - ev.x + horizontalOffset)
+                            .coerceAtLeast(0f)
+                            .coerceAtMost(maxHorizontalOffset)
+                        pointerLastX = ev.x
+                        invalidate()
+                        return true
                     }
                 }
+            }
 
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    pointerId = 0
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                pointerId = 0
+                parent?.requestDisallowInterceptTouchEvent(false)
+                if (isHorizontalScrolling) {
+                    isHorizontalScrolling = false
+                    return true
                 }
             }
         }
-        if (supportHorizontalScroll && horizontalOffset != 0f) {
-            // Use fake coordinates for children
-            return super.dispatchTouchEvent(generateTranslatedMotionEvent(ev, horizontalOffset, 0f))
+
+        return if (isHorizontalScrolling) {
+            true
+        } else if (horizontalOffset != 0f) {
+            super.dispatchTouchEvent(generateTranslatedMotionEvent(ev, horizontalOffset, 0f))
+        } else {
+            super.dispatchTouchEvent(ev)
         }
-        return super.dispatchTouchEvent(ev)
     }
 
     override fun dispatchDraw(canvas: Canvas) {
@@ -767,11 +788,17 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
             holder.itemView.apply {
                 setOnClickListener {
+                    if (isHorizontalScrolling) {
+                        return@setOnClickListener
+                    }
                     rootView.onClick(node, holder)
                 }
 
                 setOnLongClickListener {
-                    return@setOnLongClickListener rootView.onLongClick(node, holder)
+                    if (!isHorizontalScrolling) {
+                        return@setOnLongClickListener rootView.onLongClick(node, holder)
+                    }
+                    false
                 }
 
                 isLongClickable = true
