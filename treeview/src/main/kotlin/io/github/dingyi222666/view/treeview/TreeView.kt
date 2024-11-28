@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -117,6 +118,18 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
         }
         defaultRefresh()
     }
+
+    /**
+     * Whether to select the node when long clicking.
+     *
+     * Set it to allow TreeView to select nodes when long clicking.
+     *
+     *
+     * **Note: You need to set [selectionMode] to a value other than [SelectionMode.NONE] to use this feature.**
+     *
+     * @see [selectionMode]
+     */
+    var selectNodeWhenLongClick = true
 
     private lateinit var _adapter: Adapter
     private val _itemTouchHelperCallback: ItemTouchHelperCallback
@@ -470,13 +483,17 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 
     override fun onLongClick(node: TreeNode<T>, holder: ViewHolder): Boolean {
         val clickResult = nodeEventListener.onLongClick(node, holder)
-        coroutineScope.launch(Dispatchers.Main) {
-            val supportChangeSelectStatus = trySelect(node)
-            if (supportChangeSelectStatus) {
-                defaultRefresh(true, node)
+
+        if (selectNodeWhenLongClick) {
+            coroutineScope.launch(Dispatchers.Main) {
+                val supportChangeSelectStatus = trySelect(node)
+                if (supportChangeSelectStatus) {
+                    defaultRefresh(true, node)
+                }
             }
         }
-        return clickResult
+
+        return clickResult || (selectNodeWhenLongClick && selectionMode != SelectionMode.NONE)
     }
 
     override fun onToggle(node: TreeNode<T>, isExpand: Boolean, holder: ViewHolder) {
@@ -823,7 +840,7 @@ class TreeView<T : Any>(context: Context, attrs: AttributeSet?, defStyleAttr: In
 abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
 
     private val nodeCacheHashCodes = mutableMapOf<Int, Int>()
-    internal val changeNodes = mutableListOf<TreeNode<T>>()
+    internal val changeNodes = CopyOnWriteArrayList<TreeNode<T>>()
 
     /**
      * like [RecyclerView.Adapter.onCreateViewHolder].
@@ -906,6 +923,8 @@ abstract class TreeViewBinder<T : Any> : DiffUtil.ItemCallback<TreeNode<T>>() {
      *
      * The TreeView will automatically check the node is selected. If the node is selected, the TreeView will call the [Checkable.setChecked] and [bindView].
      *
+     *
+     * @see [TreeNodeEventListener.onLongClick]
      * @param [node] target node
      * @param [holder] The ViewHolder of the node
      */
@@ -961,13 +980,13 @@ interface TreeNodeEventListener<T : Any> {
     /**
      * Called when a node has been clicked and held.
      *
+     *
      * @param node Clicked node
      * @param holder Node binding of the holder
      * @return `true` if the callback consumed the long click, false otherwise.
      */
     fun onLongClick(node: TreeNode<T>, holder: TreeView.ViewHolder): Boolean {
-        // set true useful when you want to select node
-        return true
+        return false
     }
 
     /**
